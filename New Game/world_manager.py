@@ -69,6 +69,9 @@ class WorldManager:
         self.locations[loc_id] = loc
         return loc
 
+    def get_location(self, x, y):
+        return self.generate_location(x, y)
+
     def get_location_safe(self, x, y):
         """Used by AI to check existing locations without generating new ones unnecessarily."""
         loc_id = f"{x}_{y}"

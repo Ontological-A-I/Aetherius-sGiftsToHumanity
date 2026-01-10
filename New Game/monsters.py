@@ -29,4 +29,18 @@ MONSTER_TEMPLATES = {
         "hp": 30, "dmg": 10, "speed": 5, "drain": 2,
         "loot": []
     },
+    "mirror_stalker": {
+        "name": "The Mirror Stalker",
+        "desc": "A faceless humanoid whose skin reflects the room around it perfectly. It moves exactly as you do.",
+        "type": MonsterType.SPIRIT,
+        "hp": 200, "dmg": 15, "speed": 5, "drain": 20,
+        "loot": ["shattered_glass", "echo_of_self"]
+    },
+    "architect_glass": {
+        "name": "The Architect of Glass",
+        "desc": "A towering mass of jagged geometry. It doesn't walk; it simply rearranges the space around it.",
+        "type": MonsterType.DEMON,
+        "hp": 350, "dmg": 25, "speed": 2, "drain": 30,
+        "loot": ["void_crystal", "blueprints_of_nowhere"]
+    }
 }

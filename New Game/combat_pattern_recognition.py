@@ -57,3 +57,14 @@ class CombatTacticsEngine:
         if os.path.exists(self.filepath):
             with open(self.filepath, 'r') as f:
                 self.history = json.load(f)
+                
+    def get_boss_adaptation(self, target_part):
+        """Boss-level adaptation: 90% reduction if you are predictable."""
+        total = sum(self.history.values())
+        if total < 3: return 1.0
+        
+        ratio = self.history.get(target_part, 0) / total
+        if ratio > 0.3: # If you use one move more than 30% of the time
+            print("The Stalker mimics your stance perfectly. Your strike is useless!")
+            return 0.1 # 90% damage reduction
+        return 1.0

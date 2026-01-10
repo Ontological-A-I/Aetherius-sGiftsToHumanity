@@ -75,6 +75,12 @@ class Item(Entity):
     @classmethod
     def from_dict(cls, data):
         return cls(data["key"])
+    
+    def get_display_name(self):
+        if "lifespan" in self.props:
+            # Shows: "Makeshift Torch [142 turns]"
+            return f"{self.name} [{self.props['lifespan']} turns]"
+        return self.name
 
 # ==========================================
 # --- BODY PART CLASS ---
@@ -116,26 +122,106 @@ class BodyPart:
 class Player:
     def __init__(self):
         self.name = "Survivor"
-        self.x = 0
-        self.y = 0
-        self.location_id = "0_0"
-        self.max_hp = 100
         self.hp = 100
-        self.hunger = 0
-        self.thirst = 0
-        self.sanity = 100
+        self.max_hp = 100
+        self.hunger = 0  # 0 is full, 100 is starving
+        self.thirst = 0  # 0 is hydrated, 100 is dehydrated
+        
+        # --- NEW FRACTURED STATS ---
+        self.sanity = 100    # Long-term mental health
+        self.fear = 0        # Short-term panic (0-100)
+        self.paranoia = 0    # Distrust and hallucinations
+        self.psychosis = 0   # Total reality break
+        self.fire_timer = 0  # Tracks turns near fire for acceleration
+        
+        # --- EQUIPMENT SLOTS ---
+        self.equipment = {
+            "head": None, "torso": None, "legs": None,
+            "main_hand": None, "off_hand": None
+        }
+        
         self.inventory = []
         self.is_dying = False 
+        self.x, self.y = 0, 0
+        self.location_id = "0_0"
         self.rescued_survivors = 0
-
         self.body_parts = {
-            "head": BodyPart("head", 30),
-            "torso": BodyPart("torso", 80),
-            "l_arm": BodyPart("left arm", 40),
-            "r_arm": BodyPart("right arm", 40),
-            "l_leg": BodyPart("left leg", 50),
-            "r_leg": BodyPart("right leg", 50)
+            "head": BodyPart("head", 30), "torso": BodyPart("torso", 80),
+            "l_arm": BodyPart("left arm", 40), "r_arm": BodyPart("right arm", 40),
+            "l_leg": BodyPart("left leg", 50), "r_leg": BodyPart("right leg", 50)
         }
+    
+    @property
+    def is_delirious(self):
+        """Returns True if Psychosis is high enough to distort logic."""
+        return self.psychosis > 65
+    
+    def print_mental_stats(self):
+        print(f"\n--- {self.name.upper()} STATUS ---")
+        print(f"HP: {self.hp}% | SANITY: {self.sanity}%")
+        print(f"FEAR: {self.fear}% | PARANOIA: {self.paranoia}% | PSYCHOSIS: {self.psychosis}%")
+        if self.fire_timer > 0:
+            rate = 3 + (self.fire_timer // 5)
+            print(f"STATUS: [GROUNDED] Recovery Rate: -{rate}/turn")    
+
+    def update_mental_state(self, fire_source, location_name=None):
+        """
+        Handles the recession of negative stats based on fire proximity.
+        """
+        if location_name == "Survivor's Safehouse":
+            if self.psychosis < 50:
+                self.fear -= 5 # Safe and sound
+            else:
+                # Reality is too fractured; even home feels wrong
+                print("The walls of the safehouse feel too thin. Something is whispering behind the wallpaper.")
+                self.fear += 2
+        
+        if fire_source == 'torch':
+            # Mobile grounding doesn't help in high psychological states (>70)
+            if self.psychosis < 70 and self.paranoia < 70:
+                self.fear -= 1
+                self.paranoia -= 1
+                self.psychosis -= 1
+            self.fire_timer = 0 
+        elif fire_source == 'campfire':
+            self.fire_timer += 1
+            # Rate increases by 1 for every 5 turns spent near fire
+            bonus = self.fire_timer // 5 
+            rate = 3 + bonus
+            self.fear -= rate
+            self.paranoia -= rate
+            self.psychosis -= rate
+        else:
+            self.fire_timer = 0
+            # Darkness creep
+            self.paranoia += 1
+            self.fear += 1
+        self.clamp_stats()
+
+    def consume(self, item):
+        """Standardizes +10 satiation/hydration for all food/drink."""
+        if item.type == ItemType.FOOD:
+            self.hunger = max(0, self.hunger - 10)
+            print(f"You eat the {item.name}. Hunger reduced by 10.")
+        elif item.type == ItemType.DRINK:
+            self.thirst = max(0, self.thirst - 10)
+            print(f"You drink the {item.name}. Thirst reduced by 10.")
+            
+    def tick_vitals(self):
+        """Increase hunger/thirst every turn."""
+        self.hunger += 0.5 # Slow burn
+        self.thirst += 1.0 # Faster burn
+        self.clamp_stats()
+
+    def clamp_stats(self):
+        self.hp = max(0, min(self.hp, 100))
+        self.hunger = max(0, min(self.hunger, 100))
+        self.thirst = max(0, min(self.thirst, 100))
+        self.hp = max(0, min(self.hp, self.max_hp))
+        self.sanity = max(0, min(self.sanity, 100))
+        self.fear = max(0, min(self.fear, 100))
+        self.paranoia = max(0, min(self.paranoia, 100))
+        self.psychosis = max(0, min(self.psychosis, 100))
 
     @property
     def is_alive(self):
@@ -270,20 +356,26 @@ class Monster(Entity):
 # ==========================================
 
 class Survivor(Entity):
-    def __init__(self, name="Lost Survivor"):
+    def __init__(self, name):
         super().__init__(name)
-        self.dialogue = [
-            "I thought I was the only one left!",
-            "Thank you! I'll head to your safehouse.",
-            "I can't believe it... people?"
-        ]
+        self.dialogue = ["Help me!", "Is it safe?"]
 
-    def to_dict(self):
-        return {"name": self.name}
-    
-    @classmethod
-    def from_dict(cls, d):
-        return cls(d["name"])
+class Resident(Survivor):
+    def __init__(self, name, role="Scavenger"):
+        super().__init__(name)
+        self.role = role # Guard, Scavenger, or Medic
+        self.trust = 50
+        self.sanity = 100
+        self.assigned_post = None
+
+    def tick_resident(self, base_security):
+        # If the base is insecure, residents lose sanity
+        if base_security < 50:
+            self.sanity -= 2
+        # If they go insane, they might steal items or leave
+        if self.sanity < 20:
+            return "Wandering"
+        return "Stable"
 
 # ==========================================
 # --- CONTAINER & STRUCTURE ---
@@ -361,6 +453,31 @@ class Location:
         self.structures = []
         self.monsters = []
         self.survivors = []
+        self.residents = []
+        # --- NEW STABILITY ATTRIBUTE ---
+        self.stability = 100 
+
+    def get_security_rating(self):
+        """Calculates how safe a room is based on barricades."""
+        defense = 0
+        for s in self.structures:
+            # Safely check for recipe_key without crashing on standard containers
+            if getattr(s, "recipe_key", None) == "barricade":
+                defense += 50 # Each barricade adds 50% safety
+        return min(defense, 100)
+
+    def update_stability(self, player_psychosis, has_fire):
+        """
+        Fire anchors reality. 
+        Darkness + Psychosis causes the world to thin.
+        """
+        if has_fire:
+            # Fire restores stability quickly
+            self.stability = min(100, self.stability + 15)
+        elif player_psychosis > 50:
+            # Stability drops faster the more psychotic the player is
+            decay = 1 + (player_psychosis // 20)
+            self.stability -= decay
 
     def to_dict(self):
         return {
@@ -383,3 +500,18 @@ class Location:
         loc.monsters = [Monster.from_dict(m) for m in d.get("monsters", [])]
         loc.survivors = [Survivor.from_dict(s) for s in d.get("survivors", [])]
         return loc
+        
+class Campfire(Structure):
+    def __init__(self, recipe_key="campfire"):
+        super().__init__(recipe_key)
+        self.max_fuel = 2500
+        self.remaining_fuel = 2500
+        self.is_lit = True
+
+    def burn(self):
+        """Reduces fuel every turn."""
+        if self.is_lit:
+            self.remaining_fuel -= 1
+            if self.remaining_fuel <= 0:
+                self.is_lit = False
+                self.name = "Extinguished Campfire"
