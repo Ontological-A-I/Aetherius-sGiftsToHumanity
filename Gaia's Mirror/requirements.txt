@@ -30,3 +30,11 @@ requests>=2.31.0,<2.32    # For synchronous HTTP requests (can be replaced by ai
 # pytest>=7.4.0,<7.5
 # pylint>=2.17.5,<2.18
 # black>=23.9.1,<23.10
+
+
+# Explanation for requirements.txt:
+
+# Explicit Dependencies: Every external library used in our gaia_mirror modules is listed here.
+# Version Pinning (Semantic Versioning): Using >=X.Y.Z,<A.B (e.g., fastapi>=0.104.1,<0.105) is a recommended practice. It ensures that the project uses a compatible version range, allowing for minor updates without breaking changes while preventing major version upgrades that could introduce incompatibilities.
+# Categorization: Grouping dependencies by their purpose (Core Web, Data Handling, etc.) improves readability.
+# Future/Optional Dependencies: Scientific computing and quantum computing libraries are commented out as they represent significant dependencies that would be added as engine.py and quantum_hpc_connector.py evolve beyond their current mock implementations.
