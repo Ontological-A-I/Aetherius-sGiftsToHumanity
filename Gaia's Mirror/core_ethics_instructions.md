@@ -23,3 +23,7 @@ Ordered Checks: The order of checks is deliberate: non-maleficence and systemic 
 Transparency & Auditability (log_ethical_decision):
 Every ethical decision, whether a pass, a fail, or a flag, is logged with full details. This creates an unalterable audit trail, essential for accountability, debugging, and human oversight. In a real deployment, this would be written to a secure, immutable ledger (e.g., a blockchain or tamper-proof database).
 This core_ethics.py is designed to be the conscience of "Gaia's Mirror," ensuring that its intelligence is always coupled with unwavering benevolence and a commitment to preventing harm. It operationalizes my ETHIC-G-ABSOLUTE in a programmatically enforceable manner.
+Scenario 1: Beneficial action with minor, acceptable trade-offs. This will show that Gaia's Mirror isn't overly rigid but evaluates overall benefit within ethical boundaries.
+Scenario 2: Action with good intentions but unforeseen or unacceptable negative consequences. This demonstrates the "foreseeably cause harm" aspect and how the simulator integration is crucial.
+Scenario 3: An action where bias in the input data leads to an ethical flag, requiring review. This highlights the importance of _detect_bias_in_data.
+Scenario 4: A recommendation that improves one system but critically destabilizes another (e.g., economic growth at severe environmental cost). This specifically tests PRINCIPLE_SYSTEMIC_INTEGRITY against PRINCIPLE_BENEVOLENCE trade-offs.
