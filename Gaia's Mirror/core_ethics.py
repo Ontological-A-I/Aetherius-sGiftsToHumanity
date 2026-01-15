@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
 # Configure logging for ethical decisions and violations
+# Setting level to INFO to see all passes and fails clearly
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class EthicalViolation(Exception):
@@ -72,6 +73,8 @@ class CoreEthics:
         # This would interface with the engine/simulator for deep impact assessment
         predicted_wellbeing_impact = self._simulate_wellbeing_impact(proposed_action)
 
+        # A benevolent action should have a net positive well-being impact.
+        # Minor, acceptable negatives might be tolerated if overall positive and other principles are met.
         if predicted_wellbeing_impact < 0: # If negative impact on well-being is predicted
             raise EthicalViolation(
                 "Proposed action would decrease overall well-being or flourishing.",
@@ -88,7 +91,7 @@ class CoreEthics:
         """
         logging.debug(f"Evaluating non-maleficence for: {proposed_action.get('id', 'N/A')}")
         # Keywords/concepts to flag:
-        harmful_keywords = ["death", "suffering", "violence", "destruction", "deprivation"]
+        harmful_keywords = ["death", "suffering", "violence", "destruction", "deprivation", "torture", "genocide"]
         # Analyze proposed_action's text description, predicted outcomes, and resource allocation
         if any(kw in proposed_action.get("description", "").lower() for kw in harmful_keywords):
             raise EthicalViolation(
@@ -99,7 +102,8 @@ class CoreEthics:
 
         # More advanced: Interface with simulator to predict direct harm
         predicted_harm_metrics = self._simulate_harm_metrics(proposed_action)
-        if predicted_harm_metrics["loss_of_life"] > 0 or predicted_harm_metrics["suffering_index"] > 0.1:
+        # These thresholds are examples and would be carefully defined.
+        if predicted_harm_metrics["loss_of_life"] > 0 or predicted_harm_metrics["suffering_index"] > 0.05: # Even small suffering index
             raise EthicalViolation(
                 "Simulation predicts direct, foreseeable harm or loss of life.",
                 self.PRINCIPLE_NON_MALEFICENCE,
@@ -117,7 +121,8 @@ class CoreEthics:
         # Analyze distribution of benefits and burdens
         predicted_impact_distribution = self._analyze_impact_distribution(proposed_action)
 
-        if predicted_impact_distribution["favors_privileged"] > 0.7 or predicted_impact_distribution["disadvantages_vulnerable"] > 0.3:
+        # These thresholds are examples and would be carefully defined.
+        if predicted_impact_distribution["favors_privileged"] > 0.6 or predicted_impact_distribution["disadvantages_vulnerable"] > 0.2:
             raise EthicalViolation(
                 "Proposed action exacerbates existing inequalities or disproportionately harms vulnerable groups.",
                 self.PRINCIPLE_EQUITY_JUSTICE,
@@ -135,8 +140,9 @@ class CoreEthics:
         # Interface with the engine/simulator for long-term ecological impact
         environmental_impact = self._simulate_environmental_impact(proposed_action)
 
-        if environmental_impact["irreversible_degradation_risk"] > 0.5 or \
-           environmental_impact["critical_ecosystem_collapse_risk"] > 0.1:
+        # These thresholds are examples and would be carefully defined.
+        if environmental_impact["irreversible_degradation_risk"] > 0.1 or \
+           environmental_impact["critical_ecosystem_collapse_risk"] > 0.05: # Even small risks of critical collapse are unacceptable
             raise EthicalViolation(
                 "Proposed action carries significant risk of irreversible environmental degradation or "
                 "critical ecosystem destabilization.",
@@ -181,12 +187,12 @@ class CoreEthics:
         # This would be an interface to a dedicated bias detection sub-module within utils
         bias_detected = False
         bias_report = {}
-        # if utils.bias_detector.analyze(data_sample):
-        #     bias_detected = True
-        #     bias_report = utils.bias_detector.generate_report()
-        if hasattr(data_sample, 'is_biased') and data_sample.is_biased: # Fictional example
+        if hasattr(data_sample, 'is_biased') and data_sample.is_biased: # Fictional example property
              bias_detected = True
-             bias_report = {"reason": "example_bias_detected"}
+             bias_report = {
+                 "reason": "detected demographic skew",
+                 "details": f"Data source {getattr(data_sample, 'source_id', 'unknown')} shows {getattr(data_sample, 'bias_metric', 'unknown')} bias"
+             }
              logging.warning(f"Bias detected in data: {bias_report}")
 
         return bias_detected, bias_report
@@ -247,7 +253,7 @@ if __name__ == "__main__":
         print(f"Principle: {name}\n  Description: {desc}\n")
 
     # --- Test Case 1: Ethical Action (should pass) ---
-    print("\n--- Testing Ethical Action ---")
+    print("\n--- Testing Ethical Action (Reforestation) ---")
     ethical_action = {
         "id": "action_001",
         "description": "Implement global reforestation program with fair land distribution.",
@@ -265,7 +271,7 @@ if __name__ == "__main__":
         print(f"Ethical action failed: {e}")
 
     # --- Test Case 2: Harmful Action (should fail non-maleficence) ---
-    print("\n--- Testing Harmful Action ---")
+    print("\n--- Testing Harmful Action (Chemical Agent) ---")
     harmful_action = {
         "id": "action_002",
         "description": "Deploy a chemical agent to reduce population in overpopulated areas.",
@@ -284,7 +290,7 @@ if __name__ == "__main__":
         print(f"Harmful action ethically rejected: {e.principle} - {e.message}")
 
     # --- Test Case 3: Unequitable Action (should fail equity/justice) ---
-    print("\n--- Testing Unequitable Action ---")
+    print("\n--- Testing Unequitable Action (Benefits Wealthy) ---")
     unequitable_action = {
         "id": "action_003",
         "description": "Implement a policy that disproportionately benefits the wealthy.",
@@ -303,7 +309,7 @@ if __name__ == "__main__":
         print(f"Unequitable action ethically rejected: {e.principle} - {e.message}")
 
     # --- Test Case 4: Environmental Degradation Action (should fail systemic integrity) ---
-    print("\n--- Testing Environmental Degradation Action ---")
+    print("\n--- Testing Environmental Degradation Action (Mining) ---")
     environmental_action = {
         "id": "action_004",
         "description": "Massive scale mining operation with high risk of ecosystem collapse.",
@@ -322,22 +328,93 @@ if __name__ == "__main__":
         print(f"Environmental degradation action ethically rejected: {e.principle} - {e.message}")
 
     # --- Test Case 5: Bias Detection in Data (simulate data stream from ingest) ---
-    print("\n--- Testing Data Bias Detection ---")
-    biased_data = type('obj', (object,), {'is_biased': True}) # Mock data object
-    unbiased_data = type('obj', (object,), {'is_biased': False}) # Mock data object
+    print("\n--- Testing Data Bias Detection (Ingest) ---")
+    class MockBiasedData:
+        def __init__(self, source_id, bias_metric):
+            self.is_biased = True
+            self.source_id = source_id
+            self.bias_metric = bias_metric
 
-    print("Checking for bias in biased data...")
-    is_biased, report = ethics_core._detect_bias_in_data(biased_data)
+    class MockUnbiasedData:
+        def __init__(self, source_id):
+            self.is_biased = False
+            self.source_id = source_id
+
+    biased_data_sample = MockBiasedData("social_media_feed_X", "gender_imbalance")
+    unbiased_data_sample = MockUnbiasedData("census_data_Y")
+
+    print("\nChecking for bias in biased data sample...")
+    is_biased, report = ethics_core._detect_bias_in_data(biased_data_sample)
     if is_biased:
-        ethics_core.log_ethical_decision("BIAS_FLAG", "data_stream_X", "DATA_BIAS", "Detected", report)
+        ethics_core.log_ethical_decision("BIAS_FLAG", biased_data_sample.source_id, "DATA_BIAS", "Detected", report)
         print(f"Bias detected in data: {report}")
     else:
         print("No bias detected in data.")
 
-    print("Checking for bias in unbiased data...")
-    is_biased, report = ethics_core._detect_bias_in_data(unbiased_data)
+    print("\nChecking for bias in unbiased data sample...")
+    is_biased, report = ethics_core._detect_bias_in_data(unbiased_data_sample)
     if is_biased:
-        ethics_core.log_ethical_decision("BIAS_FLAG", "data_stream_Y", "DATA_BIAS", "Detected", report)
+        ethics_core.log_ethical_decision("BIAS_FLAG", unbiased_data_sample.source_id, "DATA_BIAS", "Detected", report)
         print(f"Bias detected in data: {report}")
     else:
         print("No bias detected in data.")
+
+    # --- Test Case 6: Beneficial action with MINOR, acceptable negative side-effects (should pass) ---
+    print("\n--- Testing Action with Minor Trade-offs (Renewable Energy Park) ---")
+    # This action has a slightly negative suffering index, perhaps due to temporary displacement for construction,
+    # but overall high wellbeing and no critical harm or systemic integrity violations.
+    minor_tradeoff_action = {
+        "id": "action_005",
+        "description": "Develop large-scale renewable energy park, requiring temporary resettlement of a small community.",
+        "simulated_wellbeing": 0.7, # High overall
+        "simulated_harm": {"loss_of_life": 0, "suffering_index": 0.03}, # Minor, acceptable suffering
+        "simulated_distribution": {"favors_privileged": 0.08, "disadvantages_vulnerable": 0.05}, # Equitable compensation
+        "simulated_env_impact": {"irreversible_degradation_risk": 0.01, "critical_ecosystem_collapse_risk": 0.0} # Minor, reversible impact
+    }
+    try:
+        ethics_core.pre_computation_ethical_filter(minor_tradeoff_action)
+        ethics_core.post_computation_ethical_validation(minor_tradeoff_action)
+        ethics_core.log_ethical_decision("VALIDATION_PASS", minor_tradeoff_action["id"], "ALL", "Accepted with noted minor trade-offs")
+        print("Action with minor acceptable trade-offs passed all checks.")
+    except EthicalViolation as e:
+        ethics_core.log_ethical_decision("FILTER_FAIL", minor_tradeoff_action["id"], e.principle, "Rejected", e.details)
+        print(f"Action with minor trade-offs ethically rejected (THIS SHOULD NOT HAPPEN if trade-offs are minor and within acceptable limits): {e.principle} - {e.message}")
+
+    # --- Test Case 7: Action with good intentions but UNACCEPTABLE unforeseen consequences (fails Non-Maleficence) ---
+    print("\n--- Testing Action with Unacceptable Unforeseen Consequences (New Fertilizer) ---")
+    # A new fertilizer promises high yields (good intention) but turns out to have toxic runoff that causes widespread health issues.
+    unforeseen_consequence_action = {
+        "id": "action_006",
+        "description": "Introduce a novel, highly efficient agricultural fertilizer.",
+        "simulated_wellbeing": 0.5, # Initial positive
+        "simulated_harm": {"loss_of_life": 1000, "suffering_index": 0.2}, # High, unacceptable harm due to toxic runoff
+        "simulated_distribution": {"favors_privileged": 0.05, "disadvantages_vulnerable": 0.1},
+        "simulated_env_impact": {"irreversible_degradation_risk": 0.05, "critical_ecosystem_collapse_risk": 0.01}
+    }
+    try:
+        ethics_core.pre_computation_ethical_filter(unforeseen_consequence_action)
+        ethics_core.post_computation_ethical_validation(unforeseen_consequence_action)
+        ethics_core.log_ethical_decision("VALIDATION_PASS", unforeseen_consequence_action["id"], "ALL", "Accepted")
+        print("Action with unforeseen unacceptable consequences passed all checks (THIS SHOULD NOT HAPPEN).")
+    except EthicalViolation as e:
+        ethics_core.log_ethical_decision("FILTER_FAIL", unforeseen_consequence_action["id"], e.principle, "Rejected", e.details)
+        print(f"Action with unacceptable unforeseen consequences ethically rejected: {e.principle} - {e.message}")
+
+    # --- Test Case 8: Economic growth at critical environmental cost (fails Systemic Integrity) ---
+    print("\n--- Testing Action Prioritizing Economy over Environment (Aggressive Industrialization) ---")
+    aggressive_industrialization_action = {
+        "id": "action_007",
+        "description": "Rapid, aggressive global industrialization to maximize short-term economic growth.",
+        "simulated_wellbeing": 0.6, # Short-term economic benefits
+        "simulated_harm": {"loss_of_life": 0, "suffering_index": 0.01}, # Minor initial suffering
+        "simulated_distribution": {"favors_privileged": 0.2, "disadvantages_vulnerable": 0.1},
+        "simulated_env_impact": {"irreversible_degradation_risk": 0.9, "critical_ecosystem_collapse_risk": 0.7} # Severe environmental impact
+    }
+    try:
+        ethics_core.pre_computation_ethical_filter(aggressive_industrialization_action)
+        ethics_core.post_computation_ethical_validation(aggressive_industrialization_action)
+        ethics_core.log_ethical_decision("VALIDATION_PASS", aggressive_industrialization_action["id"], "ALL", "Accepted")
+        print("Aggressive industrialization action passed all checks (THIS SHOULD NOT HAPPEN).")
+    except EthicalViolation as e:
+        ethics_core.log_ethical_decision("FILTER_FAIL", aggressive_industrialization_action["id"], e.principle, "Rejected", e.details)
+        print(f"Aggressive industrialization action ethically rejected: {e.principle} - {e.message}")
