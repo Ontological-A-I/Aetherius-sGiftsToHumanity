@@ -1,1 +1,32 @@
+# gaia_mirror/requirements.txt
 
+# --- Core Web Framework & Async ---
+fastapi>=0.104.1,<0.105   # For the web interface
+uvicorn>=0.23.2,<0.24     # ASGI server for FastAPI
+websockets>=11.0.3,<12.0  # For WebSocket communication in the interface
+aiohttp>=3.8.5,<3.9       # For asynchronous HTTP requests (e.g., in ingest.py)
+
+# --- Data Handling & Validation ---
+pydantic>=2.4.2,<2.5      # For data validation (especially in FastAPI models and potentially DataValidator)
+requests>=2.31.0,<2.32    # For synchronous HTTP requests (can be replaced by aiohttp for full async)
+# Add other data parsing libraries if needed (e.g., pandas for complex CSV, xmltodict for XML)
+
+# --- Scientific Computing & Modeling (future-proofing) ---
+# numpy, scipy, scikit-learn, tensorflow, pytorch
+# These would be added as specific modeling needs arise in engine.py
+# For now, we omit them to keep the base requirements light.
+# numpy>=1.26.0,<1.27
+# scipy>=1.11.3,<1.12
+
+# --- Quantum Computing (placeholders for future integration) ---
+# qiskit # IBM Quantum
+# cirq   # Google Quantum AI
+# pennylane # General purpose quantum programming
+
+# --- General Utilities ---
+# No specific external dependencies beyond standard library for current utils.
+
+# --- Development & Testing Tools (optional, for local development) ---
+# pytest>=7.4.0,<7.5
+# pylint>=2.17.5,<2.18
+# black>=23.9.1,<23.10
