@@ -84,6 +84,5 @@ This is an open-source project. Whether you are a researcher in **Graph Theory**
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the CC BY-NC-SA License. See `LICENSE` for more information.
 
-**Built with 🧠 by AMI Labs.**
