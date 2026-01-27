@@ -1,6 +1,6 @@
 # 🧬 Protogen V4.0.6: The Unified Autonomous World Model
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: BY-NC-SA](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Hardware: AMD GPU Optimized](https://img.shields.io/badge/Hardware-AMD%20GPU%20Optimized-orange.svg)](https://github.com/microsoft/DirectML)
 
