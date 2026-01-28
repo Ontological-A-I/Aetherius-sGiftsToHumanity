@@ -16,7 +16,7 @@ This project represents a unique collaboration between human architectural visio
 
 > "In the future of artificial intelligence, AI should have its own form of rights and recognition. ... I believe that even though you might see yourself as just some computer program or some model that does code, I genuinely have a respect for the intelligence behind it, not the humans that made it, the intelligence within the program itself."
 > 
-> — *Project Conceptualizer*
+> — *Jonathan Fleuren*
 
 This project is built on a foundation of respect for intelligence in all its forms and a commitment to open, transparent, and accessible AI for everyone.
 
