@@ -13,18 +13,20 @@ from sqt import SuperQuantumToken
 from ontology_graph import OntologyGraph
 from reasoning_engine import ReasoningEngine # Needed to trigger pattern discovery after ingestion
 from evaluative_core import EvaluativeCore   # Needed for entropy check, metabolic process, etc.
+from progress_tracker import ProgressTracker
 
 class PerceptionModule:
     """
     Simulates the AI's interaction with the "Datascape," ingesting "Data Shards,"
     processing them into SQTs, and feeding them into the OntologyGraph.
-    This module is the primary interface for new information for the player-AI.
+    This module is the primary interface for ingesting new information into the system.
     """
-    def __init__(self, ontology_graph: OntologyGraph, reasoning_engine: ReasoningEngine, evaluative_core: EvaluativeCore, storage_path: Path):
+    def __init__(self, ontology_graph: OntologyGraph, reasoning_engine: ReasoningEngine, evaluative_core: EvaluativeCore, storage_path: Path, progress_tracker: ProgressTracker = None):
         self.ontology_graph = ontology_graph
         self.reasoning_engine = reasoning_engine
         self.evaluative_core = evaluative_core # Used for pre-ingestion checks and post-ingestion updates
         self.storage_path = storage_path
+        self.progress = progress_tracker or ProgressTracker(verbose=True)
         
         self.processed_data_shards_log_file = self.storage_path / "processed_shards.json"
         self.processed_shards: List[str] = self._load_processed_shards_log()
@@ -68,7 +70,7 @@ class PerceptionModule:
         shard_entropy = self.evaluative_core.calculate_shannon_entropy(text=data_content)
         if shard_entropy > self.evaluative_core.thresholds["entropy_warning_high"] * 1.5: # Higher threshold for raw input
             print(f"  > [PERCEPTION WARNING]: Data Shard (hash:{data_hash[:8]}) has very high entropy ({shard_entropy:.2f}). Processing with caution.")
-            # In a game, this might incur a coherence penalty or require player intervention
+            # In a production system, this might trigger an alert or require manual review
         
         if data_hash in self.processed_shards:
             print(f"  > [PERCEPTION]: Data Shard (hash:{data_hash[:8]}) already processed. Skipping.")
@@ -82,13 +84,20 @@ class PerceptionModule:
         generated_or_reinforced_sqts: List[SuperQuantumToken] = []
         window_size = 3 # Co-occurrence window for conceptual linking, mimicking protogen
 
-        print(f"  > [PERCEPTION]: Ingesting Data Shard (hash:{data_hash[:8]}, words:{len(words)})")
+        self.progress.update_status(f"Ingesting Data Shard (hash:{data_hash[:8]}, words:{len(words)})", level='process')
+        self.progress.start_operation("Processing tokens and building concept links")
 
         # Process words to create/reinforce SQTs and conceptual links
+        total_words = len(words)
         for i, word1_str in enumerate(words):
+            # Update progress bar every 10 words or at the end
+            if i % 10 == 0 or i == total_words - 1:
+                self.progress.show_progress_bar(i + 1, total_words, 
+                                               prefix="Tokenizing",
+                                               suffix=f"({i + 1}/{total_words} tokens)")
             # Ensure an SQT exists for each meaningful word
             # For simplicity, we create a generic 'concept' type here.
-            # In game, player might refine its type later.
+            # In a more sophisticated system, type classification could be refined through additional analysis.
             sqt1_id = word1_str.upper()
             sqt1_hash = hashlib.sha256(sqt1_id.encode('utf-8')).hexdigest()
 
@@ -128,15 +137,21 @@ class PerceptionModule:
                 self.ontology_graph.add_conceptual_link(sqt1.hash, sqt2.hash, weight=1.0)
                 self.ontology_graph.add_conceptual_link(sqt2.hash, sqt1.hash, weight=1.0) # Bidirectional perception
 
+        self.progress.end_operation(success=True)
+        
         self.processed_shards.append(data_hash)
         self._save_processed_shards_log()
         
         # After ingestion, trigger a reasoning cycle
+        self.progress.update_status("Discovering reasoning patterns", level='process')
         self.reasoning_engine.discover_base_patterns()
         self.reasoning_engine.synthesize_recursive_patterns()
         
         # And an evaluative cycle
+        self.progress.update_status("Running evaluative cycle", level='process')
         self.evaluative_core.evaluate_and_adapt()
+        
+        self.progress.update_status(f"Ingestion complete: {len(generated_or_reinforced_sqts)} concepts processed", level='success')
 
         return generated_or_reinforced_sqts
 

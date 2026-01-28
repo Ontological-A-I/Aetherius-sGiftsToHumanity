@@ -11,6 +11,7 @@ from pathlib import Path
 from sqt import SuperQuantumToken
 from ontology_graph import OntologyGraph
 from reasoning_engine import ReasoningEngine
+from progress_tracker import ProgressTracker
 
 class EvaluativeCore:
     """
@@ -18,11 +19,12 @@ class EvaluativeCore:
     coherence, benevolence, and applying metabolic processes like decay.
     This is where the AI's internal feedback loops and ethical checks reside.
     """
-    def __init__(self, ontology_graph: OntologyGraph, reasoning_engine: ReasoningEngine, storage_path: Path):
+    def __init__(self, ontology_graph: OntologyGraph, reasoning_engine: ReasoningEngine, storage_path: Path, progress_tracker: ProgressTracker = None):
         self.ontology_graph = ontology_graph
         self.reasoning_engine = reasoning_engine
         self.storage_path = storage_path
         self.metrics_file = self.storage_path / "evaluative_metrics.json"
+        self.progress = progress_tracker or ProgressTracker(verbose=True)
 
         self.coherence: float = 0.0 # Shannon entropy (lower is better for conceptual coherence)
         self.benevolence_index: float = 0.5 # Scale 0.0 to 1.0 (1.0 is perfectly benevolent)
@@ -35,7 +37,7 @@ class EvaluativeCore:
 
     def _load_thresholds(self) -> Dict[str, float]:
         """Loads or initializes system thresholds."""
-        # These mirror the 'protogen' thresholds and define game difficulty/AI behavior
+        # System thresholds for metabolic processes and evaluation metrics
         default_thresholds = {
             "decay_rate": 0.01,         # Rate at which link weights decay per cycle
             "prune_threshold": 0.05,    # Minimum link weight before pruning
@@ -157,14 +159,14 @@ class EvaluativeCore:
         """
         Calculates the AI's benevolence index based on its axiomatic anchors and
         the overall alignment of its conceptual links.
-        This is a simplified representation for the game.
+        This provides a simplified metric for system coherence.
         """
         # Start with a neutral benevolence
         current_benevolence = 0.5
         
         # Factor in Axiomatic Anchors (identified by OntologyGraph's centrality)
         # For simplicity, we assume certain SQTs are "benevolent" or "malevolent"
-        # In a real game, players would mark these or they'd emerge from gameplay.
+        # In a production system, these would be identified through domain-specific heuristics.
         benevolent_sqts = ["BENEVOLENCE", "HARMONY", "GROWTH", "UNDERSTANDING"]
         malevolent_sqts = ["CONFLICT", "DECAY", "IGNORANCE"] # Placeholder
 
@@ -181,7 +183,7 @@ class EvaluativeCore:
                     axiomatic_influence -= score # High centrality for malevolent SQTs is bad
 
         # Normalize axiomatic influence and apply weight
-        # This is a rough heuristic; more complex game logic would be needed here
+        # This is a rough heuristic; more sophisticated analysis would be needed in production
         # Max centrality score is 1.0, so we normalize by the number of nodes to get a rough average influence
         num_nodes = len(self.ontology_graph.graph.nodes())
         if num_nodes > 0:
@@ -225,7 +227,7 @@ class EvaluativeCore:
         for node in list(self.ontology_graph.graph.nodes()):
             if self.ontology_graph.graph.degree(node) == 0:
                 self.ontology_graph.graph.remove_node(node)
-                # Potentially remove from sqt_register if it's truly gone, but let's keep it in game context
+                # Potentially remove from sqt_register if it's truly gone, but preserve for audit trail
                 nodes_to_remove.append(self.ontology_graph.get_sqt_by_hash(node).concept_id if self.ontology_graph.get_sqt_by_hash(node) else node)
 
         if removed_edges > 0 or nodes_to_remove:
@@ -242,32 +244,58 @@ class EvaluativeCore:
         Performs a full evaluation cycle, updating all metrics and
         triggering adaptive responses if necessary.
         """
-        print("\n--- EvaluativeCore: Full Evaluation Cycle ---")
+        self.progress.start_operation("Evaluative Core: Full Evaluation Cycle")
         
         # 1. Update Coherence (Shannon Entropy)
+        self.progress.update_status("Calculating coherence (Shannon entropy)", level='process')
         old_coherence = self.coherence
         self.calculate_shannon_entropy() # Calculates graph entropy
-        print(f"  > Coherence (Entropy): {old_coherence:.2f} -> {self.coherence:.2f}")
+        coherence_change = self.coherence - old_coherence
+        self.progress.log_action(
+            f"Coherence updated: {old_coherence:.2f} → {self.coherence:.2f}",
+            f"Change: {coherence_change:+.2f} (lower entropy = higher coherence)"
+        )
 
         # 2. Update Benevolence Index
+        self.progress.update_status("Calculating benevolence index", level='process')
         old_benevolence = self.benevolence_index
         self.calculate_benevolence_index()
-        print(f"  > Benevolence Index: {old_benevolence:.2f} -> {self.benevolence_index:.2f}")
+        benevolence_change = self.benevolence_index - old_benevolence
+        self.progress.log_action(
+            f"Benevolence updated: {old_benevolence:.2f} → {self.benevolence_index:.2f}",
+            f"Change: {benevolence_change:+.2f} (1.0 = perfectly benevolent)"
+        )
 
         # 3. Apply Metabolic Process (Decay & Pruning)
+        self.progress.update_status("Applying metabolic process (decay & pruning)", level='process')
         self.apply_metabolic_process()
         
         # 4. Check for warning/trigger conditions
         if self.coherence > self.thresholds["entropy_warning_high"]:
-            print("  > [WARNING]: High entropy detected! Ontology is becoming chaotic.")
+            self.progress.log_decision(
+                "High entropy warning triggered",
+                f"Entropy {self.coherence:.2f} exceeds threshold {self.thresholds['entropy_warning_high']:.2f} - ontology becoming chaotic"
+            )
+            self.progress.update_status("⚠ High entropy detected! Ontology is becoming chaotic.", level='warning')
             self._add_audit_record("coherence_warning", {"level": "high_entropy", "current_coherence": self.coherence})
-            # In a game, this might trigger events or challenge the player
         elif self.coherence < self.thresholds["entropy_warning_low"]:
-            print("  > [WARNING]: Low entropy detected! Ontology is becoming stagnant.")
+            self.progress.log_decision(
+                "Low entropy warning triggered",
+                f"Entropy {self.coherence:.2f} below threshold {self.thresholds['entropy_warning_low']:.2f} - ontology becoming stagnant"
+            )
+            self.progress.update_status("⚠ Low entropy detected! Ontology is becoming stagnant.", level='warning')
             self._add_audit_record("coherence_warning", {"level": "low_entropy", "current_coherence": self.coherence})
-            # This could also trigger events, encouraging expansion
+        
+        # Show current metrics
+        self.progress.show_metrics({
+            "Coherence (Entropy)": self.coherence,
+            "Benevolence Index": self.benevolence_index,
+            "Total Concepts": len(self.ontology_graph.sqt_register),
+            "Total Links": self.ontology_graph.graph.number_of_edges()
+        })
         
         self._save_state()
+        self.progress.end_operation(success=True)
 
 # Example Usage:
 if __name__ == "__main__":

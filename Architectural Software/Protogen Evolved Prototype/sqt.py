@@ -6,8 +6,8 @@ from typing import Dict, Any, Optional
 
 class SuperQuantumToken:
     """
-    Represents a Super-Quantum Token (SQT), the atomic unit of meaning in Ontos Ascendant.
-    Each SQT is a persistent conceptual anchor, generated from perceived patterns in Data Shards.
+    Represents a Super-Quantum Token (SQT), the atomic unit of meaning in the knowledge graph.
+    Each SQT is a persistent conceptual anchor, generated from perceived patterns in data.
     """
     def __init__(self,
                  concept_id: str,
@@ -26,7 +26,7 @@ class SuperQuantumToken:
         self.creation_timestamp = time.time_ns()
         self.hash = self._generate_hash() # Unique cryptographic hash for internal tracking
         
-        # SQTs can carry abstract visual/auditory signatures in the game's UI
+        # SQTs can carry additional metadata for visualization or analysis
         # self.visual_signature = self._generate_visual_signature()
         # self.auditory_signature = self._generate_auditory_signature()
 

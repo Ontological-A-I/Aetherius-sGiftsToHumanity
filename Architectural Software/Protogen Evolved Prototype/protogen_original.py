@@ -10,7 +10,6 @@ from pathlib import Path
 from collections import defaultdict
 import math
 from typing import Dict, Any, List, Optional
-from progress_tracker import ProgressTracker, FileProgressTracker
 
 # --- Dependency Check & Hardware Imports ---
 try:
@@ -18,11 +17,7 @@ try:
     from docx import Document
     import networkx as nx
 except ImportError as e:
-    # Only NetworkX is required, others are optional
-    try:
-        import networkx as nx
-    except ImportError:
-        sys.exit(f"[CRITICAL ERROR]: NetworkX is required. Run: pip install networkx")
+    sys.exit(f"[CRITICAL ERROR]: Missing dependencies. Run: pip install pypdf python-docx networkx. Error: {e}")
 
 # --- AMD GPU / Hardware Acceleration Subsystem ---
 try:
@@ -37,12 +32,11 @@ try:
 except ImportError:
     HAS_TORCH = False
     HAS_DIRECTML = False
-    print("--- [INFO]: 'torch' not found. Running in CPU-only mode (this is fine!) ---")
+    print("--- [WARNING]: 'torch' not found. GPU acceleration unavailable. ---")
 
 class HardwareAccelerator:
     """
     Manages the interface between the Protogen and the AMD RX 580 (via DirectML).
-    Falls back to NetworkX if PyTorch is not available.
     """
     def __init__(self):
         self.device_name = "CPU"
@@ -57,20 +51,19 @@ class HardwareAccelerator:
                 self.enabled = True
             except Exception as e:
                 print(f"  > [GPU ERROR]: DirectML initialization failed ({e}). Falling back to CPU.")
-                self.device = torch.device("cpu") if HAS_TORCH else None
+                self.device = torch.device("cpu")
                 self.device_name = "CPU (Fallback)"
         elif HAS_TORCH:
             self.device = torch.device("cpu")
             self.device_name = "CPU (Torch)"
-            self.enabled = False
+            self.enabled = False # We have torch but not DirectML, so we don't use the GPU-specific path in compute_eigenvector_centrality
         
     def compute_eigenvector_centrality(self, logic_map, tol=1e-06, max_iter=1000):
         """
         Performs Matrix Power Iteration on the GPU to calculate eigenvector centrality.
-        Falls back to NetworkX if GPU is not available.
         """
-        if not self.enabled or not logic_map or not HAS_TORCH:
-            # Fallback to NetworkX (always works)
+        if not self.enabled or not logic_map:
+            # Fallback to NetworkX
             G = nx.Graph() 
             for u, neighbors in logic_map.items():
                 for v, weight in neighbors.items():
@@ -80,13 +73,14 @@ class HardwareAccelerator:
             except nx.PowerIterationFailedConvergence:
                 return nx.degree_centrality(G)
 
-        # GPU-accelerated version (only if PyTorch is available)
+        # 1. Map string nodes to integer indices
         nodes = list(logic_map.keys())
         node_to_idx = {node: i for i, node in enumerate(nodes)}
         n = len(nodes)
         
         if n == 0: return {}
 
+        # 2. Build Adjacency Matrix (Sparse Tensor)
         indices = []
         values = []
         
@@ -102,10 +96,12 @@ class HardwareAccelerator:
 
         if not indices: return {}
 
+        # Create Sparse Tensor
         i = torch.LongTensor(indices).t()
         v = torch.FloatTensor(values)
         adj_matrix = torch.sparse_coo_tensor(i, v, (n, n)).to(self.device)
 
+        # 3. Power Iteration
         x = torch.ones((n, 1), device=self.device) / n
         
         for _ in range(max_iter):
@@ -133,7 +129,7 @@ class ProtogenMemory:
             "telemetry": self.protogen_root_path / "telemetry_log.json",
             "phenomenology": self.protogen_root_path / "phenomenology_log.json",
             "trace": self.protogen_root_path / "trace_log.json",
-            "quarantine": self.protogen_root_path / "quarantine_log.json"
+            "quarantine": self.protogen_root_path / "quarantine_log.json" # Added from v4.0.5
         }
         
         self._initialize_storage()
@@ -152,7 +148,7 @@ class ProtogenMemory:
                 "logic_map": {}, "symbols": {}, "reasoning_patterns": [],
                 "graph_metrics": {"eigenvector_centrality": {}, "shannon_entropy": 0.0},
                 "axiomatic_anchors": [], "recursive_patterns": [], 
-                "sqts": {}, "pattern_to_sqt_map": {}, "sqt_constellations": {}
+                "sqts": {}, "pattern_to_sqt_map": {}, "sqt_constellations": {} # Added constellations
             },
             "audit": [], "telemetry": [], "phenomenology": [], "trace": [], "quarantine": []
         }
@@ -190,17 +186,21 @@ class ProtogenMemory:
 
     def add_telemetry(self, data):
         self.telemetry_records.append({"ts": time.time_ns(), "data": data})
+        # Basic log pruning from 4.0.5
         if len(self.telemetry_records) > 1000: self.telemetry_records = self.telemetry_records[-1000:]
         self._save_json(self.telemetry_records, self.paths["telemetry"])
 
     def add_phenomenology(self, observation):
+        # Implementation of repetition filtering for consecutive identical observations
         if self.phenomenology_records:
             last_obs = self.phenomenology_records[-1].get("observation")
             if last_obs == observation:
+                # Reject consecutive identical repetition
                 return
         
         self.phenomenology_records.append({"ts": time.time_ns(), "observation": observation})
         
+        # Keep the record size manageable (persistence with pruning)
         if len(self.phenomenology_records) > 500:
             self.phenomenology_records = self.phenomenology_records[-500:]
             
@@ -224,12 +224,8 @@ class OperativeProtogen:
         self.library_path = self.root / "library"
         self.library_path.mkdir(parents=True, exist_ok=True)
         
-        # Initialize Progress Tracker for transparency
-        self.progress = ProgressTracker(verbose=True)
-
         # Initialize Hardware Accelerator
         self.accelerator = HardwareAccelerator()
-        self.progress.update_status(f"Hardware Accelerator: {self.accelerator.device_name}", level='info')
         
         self.memory_manager = ProtogenMemory(self.root)
         self.core_state = self.memory_manager.load_core_state()
@@ -240,13 +236,14 @@ class OperativeProtogen:
         self.identity_hash = self.core_state["identity"]["hash"]
         self.seed_axiom = self.core_state.get("seed_axiom", "AXIOM-U-SYNCHRONY")
 
-        # Thresholds
+        # Thresholds (Merged 4.0.4 and 4.0.5)
         self.thresholds = self.core_state.get("thresholds", {
             "min_token_len": 3, "reflection_trigger": 2, "abstraction_depth": 1,
             "eigenvector_threshold": 0.001, "axiom_alignment_threshold": 0.5,
             "syntropic_bound_threshold": 0.5, "shannon_entropy_threshold": 12.0,
             "mutation_rate": 0.05, "safe_mode_active": False,
-            "decay_rate": 0.01, "prune_threshold": 0.1
+            "decay_rate": 0.01,     # From 4.0.5
+            "prune_threshold": 0.1  # From 4.0.5
         })
         self.safe_mode_active = self.thresholds["safe_mode_active"]
 
@@ -297,28 +294,33 @@ class OperativeProtogen:
         print(f"--- GENESIS COMPLETE. IDENTITY: {identity_data['hash'][:8]} ---")
 
     def _initialize_ontology_graph(self):
-        """Initializes the OntologyGraph."""
-        from ontology_graph import OntologyGraph
-        return OntologyGraph(self.root, progress_tracker=self.progress)
+        """Initializes the OntologyGraph using the memory path."""
+        # The OntologyGraph will manage the logic_map, sqts, and graph_metrics
+        from core.ontology_graph import OntologyGraph
+        return OntologyGraph(self.root)
 
     def _initialize_reasoning_engine(self):
         """Initializes the ReasoningEngine."""
-        from reasoning_engine import ReasoningEngine
-        return ReasoningEngine(self.ontology_graph, self.root, progress_tracker=self.progress)
+        # The ReasoningEngine will manage reasoning_patterns, recursive_patterns, and pattern_to_sqt_map
+        from core.reasoning_engine import ReasoningEngine
+        return ReasoningEngine(self.ontology_graph, self.root)
 
     def _initialize_evaluative_core(self):
         """Initializes the EvaluativeCore."""
-        from evaluative_core import EvaluativeCore
-        return EvaluativeCore(self.ontology_graph, self.reasoning_engine, self.root, progress_tracker=self.progress)
+        # The EvaluativeCore will manage self-regulation and metrics
+        from core.evaluative_core import EvaluativeCore
+        return EvaluativeCore(self.ontology_graph, self.reasoning_engine, self.root)
 
     def _initialize_perception_module(self):
         """Initializes the PerceptionModule."""
-        from perception_module import PerceptionModule
-        return PerceptionModule(self.ontology_graph, self.reasoning_engine, self.evaluative_core, self.root, progress_tracker=self.progress)
+        # The PerceptionModule will handle data ingestion
+        from core.perception_module import PerceptionModule
+        return PerceptionModule(self.ontology_graph, self.reasoning_engine, self.evaluative_core, self.root)
 
     def _update_ontology_from_components(self):
         """
         Synchronizes the main ontology data structure with the state of the new components.
+        This is a temporary measure until the old ontology structure is fully deprecated.
         """
         self.ontology["logic_map"] = nx.to_dict_of_dicts(self.ontology_graph.graph)
         self.ontology["sqts"] = {h: sqt.to_dict() for h, sqt in self.ontology_graph.sqt_register.items()}
@@ -330,7 +332,7 @@ class OperativeProtogen:
         self.ontology["graph_metrics"]["eigenvector_centrality"] = self.ontology_graph.calculate_eigenvector_centrality()
         self.ontology["graph_metrics"]["shannon_entropy"] = self.evaluative_core.coherence
         
-        # Update axiomatic anchors
+        # Update axiomatic anchors (based on high centrality)
         centrality = self.ontology["graph_metrics"]["eigenvector_centrality"]
         eigenvector_threshold = self.thresholds["eigenvector_threshold"]
         self.ontology["axiomatic_anchors"] = [
@@ -344,31 +346,30 @@ class OperativeProtogen:
         """
         Main entry point for data ingestion, using the new PerceptionModule.
         """
-        self.progress.start_operation(f"Protogen Ingestion ({len(data_content)} bytes)")
+        print(f"\n--- PROTOGEN INGESTION: {len(data_content)} bytes ---")
         
+        # Ingest data, which triggers reasoning and evaluation cycles internally
         self.perception_module.ingest_data_shard(data_content)
+        
+        # Synchronize state back to the main memory structure
         self._update_ontology_from_components()
         
-        self.progress.show_summary("Ingestion Complete", {
-            "Status": "Ready",
-            "Concepts (SQTs)": len(self.ontology_graph.sqt_register),
-            "Conceptual Links": self.ontology_graph.graph.number_of_edges()
-        })
-        self.progress.end_operation(success=True)
+        print("--- INGESTION COMPLETE ---")
+        print(f"Current Coherence (Entropy): {self.evaluative_core.coherence:.4f}")
+        print(f"Current Benevolence Index: {self.evaluative_core.benevolence_index:.4f}")
+        print(f"Total SQTs: {len(self.ontology_graph.sqt_register)}")
+        print(f"Total Links: {self.ontology_graph.graph.number_of_edges()}")
 
     def run_metabolic_cycle(self):
         """
         Manually triggers the metabolic process and evaluation.
         """
-        self.progress.start_operation("Protogen Metabolic Cycle")
+        print("\n--- PROTOGEN METABOLIC CYCLE INITIATED ---")
         self.evaluative_core.evaluate_and_adapt()
         self._update_ontology_from_components()
-        self.progress.show_summary("Metabolic Cycle Complete", {
-            "Status": "Optimized",
-            "Concepts (SQTs)": len(self.ontology_graph.sqt_register),
-            "Conceptual Links": self.ontology_graph.graph.number_of_edges()
-        })
-        self.progress.end_operation(success=True)
+        print("--- METABOLIC CYCLE COMPLETE ---")
+        print(f"Current Coherence (Entropy): {self.evaluative_core.coherence:.4f}")
+        print(f"Current Benevolence Index: {self.evaluative_core.benevolence_index:.4f}")
 
 # Example Usage:
 if __name__ == "__main__":
@@ -396,4 +397,16 @@ if __name__ == "__main__":
     # 5. Check final state
     print("\n--- FINAL STATE SUMMARY ---")
     print(f"Axiomatic Anchors: {protogen.axiomatic_anchors}")
-    print(f"Base Reasoning Patterns: {list(protogen.reasoning_engine.base_patterns.values())}")
+    print(f"Base Reasoning Patterns: {protogen.reasoning_engine.base_patterns.values()}")
+    print(f"Recursive Reasoning Patterns: {protogen.reasoning_engine.recursive_patterns.values()}")
+    
+    # Example of using the accelerator for a custom logic map (not directly tied to the ontology graph)
+    # This demonstrates the GPU/CPU fallback functionality
+    print("\n--- ACCELERATOR TEST ---")
+    test_logic_map = {
+        "A": {"B": 1.0, "C": 0.5},
+        "B": {"A": 1.0, "C": 0.2},
+        "C": {"A": 0.5, "B": 0.2}
+    }
+    centrality_scores = protogen.accelerator.compute_eigenvector_centrality(test_logic_map)
+    print(f"Test Centrality Scores: {centrality_scores}")

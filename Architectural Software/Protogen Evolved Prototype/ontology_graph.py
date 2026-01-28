@@ -7,15 +7,16 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 # Assuming SuperQuantumToken is defined in a sibling file
-from sqt import SuperQuantumToken 
+from sqt import SuperQuantumToken
+from progress_tracker import ProgressTracker 
 
 class OntologyGraph:
     """
     Manages the interconnected network of SuperQuantumTokens (SQTs),
-    forming the evolving ontology of the nascent AI in Ontos Ascendant.
-    This is the game's Logic Map.
+    forming the evolving ontology and knowledge representation.
+    This is the system's semantic knowledge graph.
     """
-    def __init__(self, storage_path: Path):
+    def __init__(self, storage_path: Path, progress_tracker=None):
         self.storage_path = storage_path
         self.graph_file = self.storage_path / "ontology_graph.json"
         self.sqt_cache_file = self.storage_path / "sqt_cache.json" # To store SQT objects

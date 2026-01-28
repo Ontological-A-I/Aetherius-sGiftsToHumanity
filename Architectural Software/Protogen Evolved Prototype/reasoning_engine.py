@@ -9,13 +9,14 @@ from pathlib import Path
 # Assuming OntologyGraph and SuperQuantumToken are defined in sibling files
 from sqt import SuperQuantumToken
 from ontology_graph import OntologyGraph
+from progress_tracker import ProgressTracker
 
 class ReasoningEngine:
     """
     Identifies and synthesizes reasoning patterns from the OntologyGraph,
     representing the emergent logic of the AI in Ontos Ascendant.
     """
-    def __init__(self, ontology_graph: OntologyGraph, storage_path: Path):
+    def __init__(self, ontology_graph: OntologyGraph, storage_path: Path, progress_tracker=None):
         self.ontology_graph = ontology_graph
         self.storage_path = storage_path
         self.patterns_file = self.storage_path / "reasoning_patterns.json"
@@ -24,6 +25,7 @@ class ReasoningEngine:
         self.base_patterns: Dict[str, str] = {} # SQT_hash -> pattern_string (e.g., IF A THEN B)
         self.recursive_patterns: Dict[str, str] = {} # SQT_hash -> pattern_string (e.g., IF A THEN C (RECURSIVE))
         self.pattern_to_sqt_map: Dict[str, str] = {} # pattern_string -> SQT_hash for quick lookup
+        self.progress = progress_tracker or ProgressTracker(verbose=True)
 
         self._load_state()
 
@@ -94,7 +96,7 @@ class ReasoningEngine:
                         sqt_hash = self._generate_pattern_sqt(pattern_str, "base_reasoning_pattern")
                         self.base_patterns[sqt_hash] = pattern_str
                         new_patterns_found.append(pattern_str)
-                        print(f"Discovered Base Pattern: {pattern_str}")
+                        self.progress.log_action("Discovered Base Pattern", details=pattern_str)
         
         if new_patterns_found:
             self._save_state()
@@ -128,7 +130,7 @@ class ReasoningEngine:
                                 sqt_hash = self._generate_pattern_sqt(recursive_pattern_str, "recursive_reasoning_pattern")
                                 self.recursive_patterns[sqt_hash] = recursive_pattern_str
                                 new_recursive_patterns.append(recursive_pattern_str)
-                                print(f"Synthesized Recursive Pattern: {recursive_pattern_str}")
+                                self.progress.log_action("Synthesized Recursive Pattern", details=recursive_pattern_str)
         
         if new_recursive_patterns:
             self._save_state()
