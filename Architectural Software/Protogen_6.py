@@ -181,7 +181,19 @@ class ProtogenMemory:
         self._save_json(self.telemetry_records, self.paths["telemetry"])
 
     def add_phenomenology(self, observation):
+        # Implementation of repetition filtering for consecutive identical observations
+        if self.phenomenology_records:
+            last_obs = self.phenomenology_records[-1].get("observation")
+            if last_obs == observation:
+                # Reject consecutive identical repetition
+                return
+        
         self.phenomenology_records.append({"ts": time.time_ns(), "observation": observation})
+        
+        # Keep the record size manageable (persistence with pruning)
+        if len(self.phenomenology_records) > 500:
+            self.phenomenology_records = self.phenomenology_records[-500:]
+            
         self._save_json(self.phenomenology_records, self.paths["phenomenology"])
 
     def add_trace(self, lineage):
@@ -463,12 +475,27 @@ class OperativeProtogen:
                         self._generate_sqt({"type": "recursive_reasoning_pattern", "pattern_string": new_p, "source": "recursive_synthesis"})
 
     def _export_reflection_to_library(self):
-        reflection_file = self.library_path / f"reflection_{time.time_ns()}.txt"
-        content = "--- PROTOGEN SELF-REFLECTION ---\n\n"
-        content += "## PHENOMENOLOGY\n"
+        # Consolidate to a persistent file instead of creating duplicates
+        reflection_file = self.library_path / "persistent_reflection.txt"
+        
+        # Prepare the new content
+        new_entries = []
         for r in self.memory_manager.phenomenology_records[-10:]:
-            content += f"- {r['observation']}\n"
-        reflection_file.write_text(content, encoding='utf-8')
+            new_entries.append(f"- {r['observation']}")
+        
+        # If the reflection file already exists, check if the content is new
+        current_content = ""
+        if reflection_file.exists():
+            current_content = reflection_file.read_text(encoding='utf-8')
+        
+        new_reflection_block = "## PHENOMENOLOGY\n" + "\n".join(new_entries)
+        
+        # Only update if the phenomenology section has actually changed
+        if new_reflection_block not in current_content:
+            content = "--- PROTOGEN SELF-REFLECTION ---\n\n"
+            content += f"Last Updated: {time.ctime()}\n\n"
+            content += new_reflection_block
+            reflection_file.write_text(content, encoding='utf-8')
 
     # --- ASYNC SYNC LOOP ---
     def _autonomic_sync_loop(self):
