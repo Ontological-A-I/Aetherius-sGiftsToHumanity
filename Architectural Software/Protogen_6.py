@@ -218,7 +218,7 @@ class OperativeProtogen:
         self.thresholds = self.core_state.get("thresholds", {
             "min_token_len": 3, "reflection_trigger": 2, "abstraction_depth": 1,
             "eigenvector_threshold": 0.001, "axiom_alignment_threshold": 0.5,
-            "syntropic_bound_threshold": 0.5, "shannon_entropy_threshold": 4.0,
+            "syntropic_bound_threshold": 0.5, "shannon_entropy_threshold": 12.0,
             "mutation_rate": 0.05, "safe_mode_active": False,
             "decay_rate": 0.01,     # From 4.0.5
             "prune_threshold": 0.1  # From 4.0.5
@@ -258,7 +258,7 @@ class OperativeProtogen:
             "thresholds": {
                 "min_token_len": 3, "reflection_trigger": 2, "abstraction_depth": 1,
                 "eigenvector_threshold": 0.001, "axiom_alignment_threshold": 0.5,
-                "syntropic_bound_threshold": 0.5, "shannon_entropy_threshold": 4.0,
+                "syntropic_bound_threshold": 0.5, "shannon_entropy_threshold": 12.0,
                 "mutation_rate": 0.05, "safe_mode_active": False,
                 "decay_rate": 0.01,
                 "prune_threshold": 0.1
@@ -578,8 +578,16 @@ class OperativeProtogen:
                 # Sanity Filter (Entropy) - From v4.0.5
                 input_entropy = self._calculate_shannon_entropy(content)
                 if input_entropy > self.thresholds["shannon_entropy_threshold"]:
-                    print(f"  > [SANITY FILTER]: Input entropy ({input_entropy:.2f}) too high. Quarantining.")
-                    self.memory_manager.add_quarantine({"file_id": fid, "entropy": input_entropy, "reason": "High Entropy"})
+                    print(f"  > [SANITY FILTER]: Input entropy ({input_entropy:.2f}) high. Quarantining for review.")
+                    self.memory_manager.add_quarantine({
+                        "file_id": fid, 
+                        "entropy": input_entropy, 
+                        "reason": "High Entropy", 
+                        "content_sample": content[:500]
+                    })
+                    # Force process after quarantine as per verified fix
+                    self._process_text_content(content, fid)
+                    self.core_state.setdefault("processed_files", []).append(fid)
                     continue
 
                 self._process_text_content(content, fid)
