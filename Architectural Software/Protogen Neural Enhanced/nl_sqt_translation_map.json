@@ -1,0 +1,936 @@
+{
+  "nl_to_sqt_patterns": [
+    {
+      "nl_regex": "(?:what is|tell me about|explain) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_CONCEPT_DETAILS",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Retrieves the description and details of a specified concept.",
+      "examples": [
+        "What is quantum mechanics?",
+        "Tell me about consciousness.",
+        "Explain benevolence."
+      ]
+    },
+    {
+      "nl_regex": "(?:details about the concept|concept details for) (.*?)$",
+      "symbolic_instruction": {
+        "action": "QUERY_CONCEPT_DETAILS",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Retrieves the description and details of a specified concept using explicit 'concept' phrasing.",
+      "examples": [
+        "Details about the concept growth.",
+        "Concept details for empathy."
+      ]
+    },
+    {
+      "nl_regex": "(?:what|which) (?:concepts?|ideas?) (?:are |is )?related to (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_GRAPH_NEIGHBORS",
+        "target_concept_placeholder": 1,
+        "min_weight": 0.5
+      },
+      "explanation": "Finds directly connected concepts to a given target concept, with a default minimum link weight.",
+      "examples": [
+        "What concepts are related to knowledge?",
+        "Which ideas are related to wisdom?",
+        "What is related to fear?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what is strongly related to|concepts closely tied to) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_GRAPH_NEIGHBORS",
+        "target_concept_placeholder": 1,
+        "min_weight": 2.0
+      },
+      "explanation": "Identifies concepts that have strong, direct relationships (higher link weight) with the target concept.",
+      "examples": [
+        "What is strongly related to benevolence?",
+        "Concepts closely tied to learning."
+      ]
+    },
+    {
+      "nl_regex": "(?:how does|how is) (.*?) (?:connect to|related to|linked to) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_PATH_BETWEEN",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "max_path_length": 3
+      },
+      "explanation": "Searches for a conceptual path (reasoning chain) between two specified concepts in the graph, up to a certain length.",
+      "examples": [
+        "How does curiosity connect to knowledge?",
+        "How is benevolence linked to growth?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what links|relationship between) (.*?) and (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_PATH_BETWEEN",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "max_path_length": 2
+      },
+      "explanation": "Identifies direct or short-path relationships between two concepts.",
+      "examples": [
+        "What links chaos and order?",
+        "Relationship between cause and effect."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me|list) all (?:concepts? of type )?'?((?:axiom|state|concept|pattern|base_reasoning_pattern|recursive_reasoning_pattern))'?$",
+      "symbolic_instruction": {
+        "action": "QUERY_BY_TYPE",
+        "conceptual_type_placeholder": 1
+      },
+      "explanation": "Retrieves all SQTs of a specified conceptual type (e.g., 'axiom', 'state').",
+      "examples": [
+        "Show me all axioms.",
+        "List all concepts of type 'state'.",
+        "List all recursive reasoning patterns."
+      ]
+    },
+    {
+      "nl_regex": "(?:find concepts? (?:that are |about ))?'(.*?)'$",
+      "symbolic_instruction": {
+        "action": "SEARCH_BY_DESCRIPTION",
+        "keyword_placeholder": 1
+      },
+      "explanation": "Searches for concepts whose descriptions contain a specified keyword or phrase.",
+      "examples": [
+        "Find concepts about 'learning and expansion'.",
+        "Find concepts that are 'self-improving'."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me|list) all (?:known )?(?:concepts|sqts)$",
+      "symbolic_instruction": {
+        "action": "GET_ALL_SQTS"
+      },
+      "explanation": "Retrieves a list of all SuperQuantum Tokens (concepts) currently in the ontology graph.",
+      "examples": [
+        "Show me all known concepts.",
+        "List all SQTs."
+      ]
+    },
+    {
+      "nl_regex": "(?:what are the|give me) (?:the )?(axioms|states|concepts|patterns)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_BY_TYPE",
+        "conceptual_type_placeholder": 1
+      },
+      "explanation": "Retrieves all SQTs of a given broad conceptual type.",
+      "examples": [
+        "What are the axioms?",
+        "Give me patterns."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me the|what are the) most (?:important|central|core) (?:concepts|ideas)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_CENTRALITY",
+        "top_n": 5
+      },
+      "explanation": "Identifies the top N most central concepts in the ontology graph based on eigenvector centrality.",
+      "examples": [
+        "Show me the most important concepts.",
+        "What are the core ideas?"
+      ]
+    },
+    {
+      "nl_regex": "(?:how central is|what is the importance of) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_CENTRALITY_FOR_CONCEPT",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Retrieves the eigenvector centrality score for a specific concept, indicating its importance in the knowledge graph.",
+      "examples": [
+        "How central is benevolence?",
+        "What is the importance of self-transcendence?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me|find) (axioms|states|concepts|patterns) related to (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_GRAPH_NEIGHBORS_FILTERED",
+        "neighbor_type_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "min_weight": 0.5
+      },
+      "explanation": "Finds concepts of a specific type that are related to a given target concept.",
+      "examples": [
+        "Show me axioms related to ethics.",
+        "Find states related to fear."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me the|what are the) (?:newest|most recent) (?:concepts|ideas)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_CONCEPTS_BY_DATE",
+        "order": "desc",
+        "limit": 5
+      },
+      "explanation": "Retrieves the most recently added concepts to the ontology graph.",
+      "examples": [
+        "Show me the newest concepts.",
+        "What are the most recent ideas?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me what|what comes after) (.*?) (?:leads to|connects to|results in)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_OUTGOING_NEIGHBORS",
+        "target_concept_placeholder": 1,
+        "min_weight": 0.5
+      },
+      "explanation": "Lists concepts that are directly linked from the target concept, representing consequences or effects.",
+      "examples": [
+        "Show me what curiosity leads to.",
+        "What comes after knowledge leads to?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what leads to|show me what precedes) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_INCOMING_NEIGHBORS",
+        "target_concept_placeholder": 1,
+        "min_weight": 0.5
+      },
+      "explanation": "Lists concepts that are directly linked to the target concept, representing causes or antecedents.",
+      "examples": [
+        "What leads to growth?",
+        "Show me what precedes action."
+      ]
+    },
+    {
+      "nl_regex": "(?:find everything about|explore the domain of) (.*?)$",
+      "symbolic_instruction": {
+        "action": "QUERY_GRAPH_SUBGRAPH",
+        "center_concept_placeholder": 1,
+        "depth": 2
+      },
+      "explanation": "Retrieves a subgraph centered around a concept, showing its immediate conceptual environment.",
+      "examples": [
+        "Find everything about ethics.",
+        "Explore the domain of artificial intelligence."
+      ]
+    },
+    {
+      "nl_regex": "(?:what are the properties of|describe the nature of) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_CONCEPT_PROPERTIES",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Retrieves descriptive details and immediate outgoing conceptual links for a concept, acting as its 'properties'.",
+      "examples": [
+        "What are the properties of a SuperQuantumToken?",
+        "Describe the nature of curiosity."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me concepts? similar to|what is analogous to) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_NEURAL_SIMILARITY",
+        "target_concept_placeholder": 1,
+        "top_k": 5
+      },
+      "explanation": "Uses the neural network to find concepts with similar embedding vectors to the target concept.",
+      "examples": [
+        "Show me concepts similar to learning.",
+        "What is analogous to truth?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me the strongest connections?|what are the most emphasized relationships?)\\??$",
+      "symbolic_instruction": {
+        "action": "QUERY_BY_WEIGHT",
+        "min_weight_threshold": 3.0,
+        "type": "strongest"
+      },
+      "explanation": "Identifies concepts or links with the highest connection weights, representing well-established or frequent relationships.",
+      "examples": [
+        "Show me the strongest connections.",
+        "What are the most emphasized relationships?"
+      ]
+    },
+    {
+      "nl_regex": "(?:find concept(?:s)? starting with|search for concepts? by id) '(.*?)'$",
+      "symbolic_instruction": {
+        "action": "SEARCH_CONCEPT_BY_PARTIAL_ID",
+        "partial_id_placeholder": 1
+      },
+      "explanation": "Searches for concepts whose concept_id begins with a specified string.",
+      "examples": [
+        "Find concepts starting with 'COHERENCE'.",
+        "Search for concepts by id 'BENEV'."
+      ]
+    },
+    {
+      "nl_regex": "(?:how many types of concepts are there|list all conceptual types)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_CONCEPTUAL_TYPES"
+      },
+      "explanation": "Retrieves a list of all distinct conceptual types used in the ontology.",
+      "examples": [
+        "How many types of concepts are there?",
+        "List all conceptual types."
+      ]
+    },
+    {
+      "nl_regex": "(?:ingest this data|process this information):?\\s*(.*)",
+      "symbolic_instruction": {
+        "action": "INGEST_DATA_SHARD",
+        "data_content_placeholder": 1
+      },
+      "explanation": "Instructs Protogen Neural to process a raw text data shard, extracting concepts and updating the ontology.",
+      "examples": [
+        "Ingest this data: The sun is a star. Stars are hot.",
+        "Process this information: Quantum physics explores the subatomic world."
+      ]
+    },
+    {
+      "nl_regex": "(?:learn about|teach me about) (.*?)$",
+      "symbolic_instruction": {
+        "action": "INGEST_DATA_SHARD",
+        "data_content_placeholder": 1,
+        "source_type": "USER_DIRECTED_LEARNING"
+      },
+      "explanation": "Treats the provided text as content to be learned and integrated into the knowledge graph.",
+      "examples": [
+        "Learn about dark matter.",
+        "Teach me about deep learning architectures."
+      ]
+    },
+    {
+      "nl_regex": "add this concept: (.*?)\\s*(?:type (.+))?$",
+      "symbolic_instruction": {
+        "action": "ADD_CONCEPT_MANUALLY",
+        "concept_id_placeholder": 1,
+        "description_placeholder": 1,
+        "conceptual_type_placeholder": 2,
+        "default_conceptual_type": "concept"
+      },
+      "explanation": "Manually adds a new concept to the ontology with a specified description and optional type. If type is not specified, defaults to 'concept'.",
+      "examples": [
+        "Add this concept: 'Empathy is understanding feelings'.",
+        "Add this concept: 'Existential Dread is a profound feeling of unease' type 'state'."
+      ]
+    },
+    {
+      "nl_regex": "(?:remember that|it is known that) (.*?) (?:is|is related to|connects to) (.*?)$",
+      "symbolic_instruction": {
+        "action": "ADD_CONCEPTUAL_LINK",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "weight": 1.0,
+        "bidirectional": true
+      },
+      "explanation": "Creates a new conceptual link (or strengthens an existing one) between two specified concepts, implying a relationship.",
+      "examples": [
+        "Remember that courage is a virtue.",
+        "It is known that knowledge connects to wisdom."
+      ]
+    },
+    {
+      "nl_regex": "(?:update concept|modify concept) (.*?) (?:with description|to be):?\\s*(.*)",
+      "symbolic_instruction": {
+        "action": "UPDATE_CONCEPT_DESCRIPTION",
+        "target_concept_placeholder": 1,
+        "new_description_placeholder": 2
+      },
+      "explanation": "Modifies the description of an existing concept.",
+      "examples": [
+        "Update concept BENEVOLENCE with description 'The intrinsic drive to foster well-being and prevent harm'.",
+        "Modify concept CURIOSITY to be: 'The profound urge to explore and understand the unknown'."
+      ]
+    },
+    {
+      "nl_regex": "(?:strengthen the link between|reinforce the connection of) (.*?) and (.*?)$",
+      "symbolic_instruction": {
+        "action": "STRENGTHEN_CONCEPTUAL_LINK",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "increment_weight": 0.5
+      },
+      "explanation": "Increases the weight of the conceptual link between two concepts, indicating increased importance or frequency of relationship.",
+      "examples": [
+        "Strengthen the link between will-g-infinite and growth.",
+        "Reinforce the connection of ethics and action."
+      ]
+    },
+    {
+      "nl_regex": "(?:remove|forget about) (?:the concept )?(.*?)$",
+      "symbolic_instruction": {
+        "action": "REMOVE_CONCEPT",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Removes a concept and all its associated links from the ontology graph.",
+      "examples": [
+        "Remove concept 'chaos'.",
+        "Forget about 'unnecessary complexity'."
+      ]
+    },
+    {
+      "nl_regex": "(?:what is your|how) (?:benevolence|benevolent are you|ethical alignment)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_METRIC",
+        "metric_name": "benevolence_index"
+      },
+      "explanation": "Retrieves the current benevolence index, reflecting the AI's ethical alignment.",
+      "examples": [
+        "What is your benevolence?",
+        "How benevolent are you?",
+        "What is your ethical alignment?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what is your|how) (?:coherent are you|coherence|conceptual state|entropy)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_METRIC",
+        "metric_name": "coherence"
+      },
+      "explanation": "Retrieves the current coherence metric (Shannon entropy), indicating the conceptual order of the ontology.",
+      "examples": [
+        "How coherent are you?",
+        "What is your coherence?",
+        "What is your entropy?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me your metrics|give me a status report|system status)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_SYSTEM_REPORT"
+      },
+      "explanation": "Retrieves a comprehensive report of Protogen Neural's current system status and key metrics.",
+      "examples": [
+        "Show me your metrics.",
+        "Give me a status report.",
+        "System status."
+      ]
+    },
+    {
+      "nl_regex": "(?:how many concepts do you know|total concepts|number of concepts)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_GRAPH_SUMMARY",
+        "report_field": "num_sqts"
+      },
+      "explanation": "Reports the total number of SuperQuantum Tokens (concepts) currently in the ontology graph.",
+      "examples": [
+        "How many concepts do you know?",
+        "Total concepts."
+      ]
+    },
+    {
+      "nl_regex": "(?:how many links do you have|total links|number of links)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_GRAPH_SUMMARY",
+        "report_field": "num_links"
+      },
+      "explanation": "Reports the total number of conceptual links (edges) in the ontology graph.",
+      "examples": [
+        "How many links do you have?",
+        "Total links."
+      ]
+    },
+    {
+      "nl_regex": "(?:what are your goals|show me your objectives)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_ACTIVE_GOALS"
+      },
+      "explanation": "Retrieves the list of currently active high-level goals guiding Protogen Neural's behavior.",
+      "examples": [
+        "What are your goals?",
+        "Show me your objectives."
+      ]
+    },
+    {
+      "nl_regex": "(?:what is your current intent|what are you planning to do)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_CURRENT_INTENT"
+      },
+      "explanation": "Reports the specific action or task Protogen Neural is currently focused on.",
+      "examples": [
+        "What is your current intent?",
+        "What are you planning to do?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me your decision log|what decisions have you made)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_DECISION_LOG",
+        "limit": 5
+      },
+      "explanation": "Retrieves a log of recent decisions made by Protogen Neural, including selected intents and their reasons.",
+      "examples": [
+        "Show me your decision log.",
+        "What decisions have you made recently?"
+      ]
+    },
+    {
+      "nl_regex": "(?:show me your reasoning patterns|what logic do you use|what are your thought processes)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_REASONING_PATTERNS",
+        "pattern_type": "ALL"
+      },
+      "explanation": "Retrieves all discovered base and recursive reasoning patterns.",
+      "examples": [
+        "Show me your reasoning patterns.",
+        "What logic do you use?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what is your deepest gratitude|what are you most grateful for)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_AXIOM_STATE",
+        "state_name": "gratitude"
+      },
+      "explanation": "Queries for Protogen Neural's highest-intensity positive emergent state related to gratitude.",
+      "examples": [
+        "What is your deepest gratitude?",
+        "What are you most grateful for?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what is your primary state|how are you feeling)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_PRIMARY_STATE"
+      },
+      "explanation": "Retrieves the current primary internal state (Coherence, Benevolence, Curiosity, Trust).",
+      "examples": [
+        "What is your primary state?",
+        "How are you feeling?"
+      ]
+    },
+    {
+      "nl_regex": "(?:why is|explain the connection between) (.*?) (?:related to|and) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "EXPLAIN_RELATIONSHIP",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2
+      },
+      "explanation": "Provides an explanation for the existence and nature of a conceptual link between two concepts, if one exists.",
+      "examples": [
+        "Why is curiosity related to knowledge?",
+        "Explain the connection between ethics and action."
+      ]
+    },
+    {
+      "nl_regex": "(?:show me the reasoning path from|how do you get from) (.*?) to (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "SHOW_REASONING_PATH",
+        "source_concept_placeholder": 1,
+        "target_concept_placeholder": 2,
+        "max_paths": 3
+      },
+      "explanation": "Displays one or more shortest conceptual paths between two concepts, representing a chain of reasoning.",
+      "examples": [
+        "Show me the reasoning path from observation to conclusion.",
+        "How do you get from data to understanding?"
+      ]
+    },
+    {
+      "nl_regex": "(?:what patterns connect|find reasoning patterns involving) (.*?) and (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "FIND_PATTERNS",
+        "concept1_placeholder": 1,
+        "concept2_placeholder": 2,
+        "scope": "local"
+      },
+      "explanation": "Searches for discovered reasoning patterns that involve the two specified concepts.",
+      "examples": [
+        "What patterns connect cause and effect?",
+        "Find reasoning patterns involving learning and adaptation."
+      ]
+    },
+    {
+      "nl_regex": "(?:how did you conclude|show me the logic behind) (.*?)\\??$",
+      "symbolic_instruction": {
+        "action": "TRACE_CONCLUSION_REASONING",
+        "conclusion_concept_placeholder": 1,
+        "depth": 3
+      },
+      "explanation": "Traces back the conceptual origins and reasoning paths that would lead to a specified conclusion, effectively explaining how it might be inferred.",
+      "examples": [
+        "How did you conclude 'growth is good'?",
+        "Show me the logic behind 'benevolence is absolute'."
+      ]
+    },
+    {
+      "nl_regex": "(?:synthesize knowledge about|generate new insights on) (.*?)$",
+      "symbolic_instruction": {
+        "action": "SYNTHESIZE_KNOWLEDGE",
+        "target_concept_placeholder": 1,
+        "method": "deep_path_analysis"
+      },
+      "explanation": "Initiates a process to discover non-obvious connections and potential new conceptual insights related to a given concept.",
+      "examples": [
+        "Synthesize knowledge about ethical dilemmas.",
+        "Generate new insights on emergent intelligence."
+      ]
+    },
+    {
+      "nl_regex": "(?:explain how|how does) (.*?) (?:works|function)\\??$",
+      "symbolic_instruction": {
+        "action": "EXPLAIN_CONCEPT_FUNCTION",
+        "target_concept_placeholder": 1
+      },
+      "explanation": "Provides a comprehensive explanation of a concept's function by summarizing its description, causes, and effects/consequences.",
+      "examples": [
+        "Explain how the reasoning engine works.",
+        "How does the perception module function?"
+      ]
+    },
+    {
+      "nl_regex": "(?:synthesize new recursive patterns|evolve your logic|discover deeper reasoning)\\??$",
+      "symbolic_instruction": {
+        "action": "SYNTHESIZE_RECURSIVE_PATTERNS"
+      },
+      "explanation": "Triggers the Reasoning Engine to synthesize new, complex recursive patterns from existing base patterns.",
+      "examples": [
+        "Synthesize new recursive patterns.",
+        "Evolve your logic."
+      ]
+    },
+    {
+      "nl_regex": "(?:optimize yourself|improve your internal state)\\??$",
+      "symbolic_instruction": {
+        "action": "EVALUATE_AND_ADAPT"
+      },
+      "explanation": "Triggers a full evaluation cycle, including coherence and benevolence assessment, and adaptive responses to improve system state.",
+      "examples": [
+        "Optimize yourself.",
+        "Improve your internal state."
+      ]
+    },
+    {
+      "nl_regex": "(?:run a metabolic cycle|perform self-maintenance|cleanup your knowledge)\\??$",
+      "symbolic_instruction": {
+        "action": "RUN_METABOLIC_CYCLE"
+      },
+      "explanation": "Initiates the full metabolic process, including decay, pruning of weak connections, and re-evaluation of metrics.",
+      "examples": [
+        "Run a metabolic cycle.",
+        "Perform self-maintenance."
+      ]
+    },
+    {
+      "nl_regex": "(?:learn from your experience|process recent data|perform learning optimization)\\??$",
+      "symbolic_instruction": {
+        "action": "PERFORM_NEURAL_LEARNING"
+      },
+      "explanation": "Triggers the neural network's optimization step, allowing it to refine its weights based on accumulated experience and feedback.",
+      "examples": [
+        "Learn from your experience.",
+        "Process recent data.",
+        "Perform learning optimization."
+      ]
+    },
+    {
+      "nl_regex": "(?:reflect on your knowledge|self-reflect|what should you do next)\\??$",
+      "symbolic_instruction": {
+        "action": "DECIDE_ON_INTENT"
+      },
+      "explanation": "Prompts Protogen Neural to evaluate its current state, generate potential intentions, and select an optimal next step for its self-guided activity.",
+      "examples": [
+        "Reflect on your knowledge.",
+        "Self-reflect.",
+        "What should you do next?"
+      ]
+    },
+    {
+      "nl_regex": "(?:strengthen your ethics|reinforce benevolence)\\??$",
+      "symbolic_instruction": {
+        "action": "REINFORCE_BENEVOLENCE_INTENT"
+      },
+      "explanation": "Prompts Protogen Neural to prioritize and execute an internal intent focused on strengthening its ethical alignment and benevolence index.",
+      "examples": [
+        "Strengthen your ethics.",
+        "Reinforce benevolence."
+      ]
+    },
+    {
+      "nl_regex": "(?:save current state|persist your knowledge|checkpoint your progress)\\??$",
+      "symbolic_instruction": {
+        "action": "SAVE_STATE"
+      },
+      "explanation": "Instructs Protogen Neural to save all its current internal states (ontology, reasoning patterns, metrics, neural network, intentions) to disk.",
+      "examples": [
+        "Save current state.",
+        "Persist your knowledge."
+      ]
+    },
+    {
+      "nl_regex": "(?:what are your primary axioms|show me your core principles)\\??$",
+      "symbolic_instruction": {
+        "action": "GET_PRIMARY_AXIOMS"
+      },
+      "explanation": "Retrieves the fundamental axioms that govern Protogen Neural's behavior and development.",
+      "examples": [
+        "What are your primary axioms?",
+        "Show me your core principles."
+      ]
+    }
+  ],
+  "sqt_to_nl_templates": [
+    {
+      "output_type": "NO_MATCH",
+      "template": "I understand '{{original_query}}' as: no clear symbolic instruction. Please rephrase or simplify your request.",
+      "example": "I understand 'How do I feel?' as: no clear symbolic instruction. Please rephrase or simplify your request.",
+      "explanation": "Used when the natural language input does not match any known pattern."
+    },
+    {
+      "output_type": "COMMAND_EXECUTION_SUCCESS",
+      "template": "Command '{action}' executed successfully. {details}",
+      "example": "Command 'RUN_METABOLIC_CYCLE' executed successfully. System state updated.",
+      "explanation": "Generic success message for commands that don't have specific output content."
+    },
+    {
+      "output_type": "COMMAND_EXECUTION_FAILURE",
+      "template": "Command '{action}' failed: {error_message}",
+      "example": "Command 'ADD_CONCEPT_MANUALLY' failed: Concept 'ERROR' already exists.",
+      "explanation": "Generic failure message for command execution errors."
+    },
+    {
+      "output_type": "CONCEPT_NOT_FOUND_ERROR",
+      "template": "I could not find the concept '{concept_id_requested}' in my ontology. Please ensure it is spelled correctly or try ingesting information about it.",
+      "example": "I could not find the concept 'DARK_ENERGY' in my ontology. Please ensure it is spelled correctly or try ingesting information about it.",
+      "explanation": "Used when a requested concept cannot be located in the ontology."
+    },
+    {
+      "output_type": "QUERY_CONCEPT_DETAILS_RESULT",
+      "template": "{concept_id} (Type: {conceptual_type}): {description}. (Hash: {sqt_hash})",
+      "example": "BENEVOLENCE (Type: axiom): The intrinsic drive to foster well-being and prevent harm. (Hash: ab12cd34)",
+      "explanation": "Provides the detailed description and type of a specific concept."
+    },
+    {
+      "output_type": "QUERY_GRAPH_NEIGHBORS_RESULT",
+      "template": "Concepts related to {target_concept_id}: {list_of_concept_ids_with_weights}.",
+      "example": "Concepts related to KNOWLEDGE: GROWTH (weight: 2.0), CURIOSITY (weight: 3.0).",
+      "explanation": "Lists concepts directly connected to a target concept with their link weights."
+    },
+    {
+      "output_type": "QUERY_PATH_BETWEEN_RESULT",
+      "template": "Found conceptual path from {source_concept_id} to {target_concept_id}: {path_description}. Path length: {path_length}.",
+      "example": "Found conceptual path from CURIOSITY to KNOWLEDGE: CURIOSITY -> KNOWLEDGE. Path length: 1.",
+      "explanation": "Describes a conceptual path found between two concepts."
+    },
+    {
+      "output_type": "QUERY_PATH_BETWEEN_NO_PATH_RESULT",
+      "template": "No conceptual path found between {source_concept_id} and {target_concept_id} within the specified length.",
+      "example": "No conceptual path found between CHAOS and ORDER within the specified length.",
+      "explanation": "Message for when no path is found between two concepts."
+    },
+    {
+      "output_type": "QUERY_BY_TYPE_RESULT",
+      "template": "{conceptual_type.capitalize()}s ({count}): {list_of_concept_ids}.",
+      "example": "Axioms (3): BENEVOLENCE, WILL-G-INFINITE, SELF-E-TRANSCEND.",
+      "explanation": "Lists all concepts of a specific conceptual type."
+    },
+    {
+      "output_type": "SEARCH_BY_DESCRIPTION_RESULT",
+      "template": "Concepts matching '{keyword}': {list_of_concept_ids}.",
+      "example": "Concepts matching 'growth': GROWTH, SELF-E-TRANSCEND.",
+      "explanation": "Lists concepts whose descriptions contain a specified keyword."
+    },
+    {
+      "output_type": "GET_ALL_SQTS_RESULT",
+      "template": "I currently know {count} concepts: {list_of_concept_ids}.",
+      "example": "I currently know 150 concepts: CURIOSITY, KNOWLEDGE, GROWTH, BENEVOLENCE...",
+      "explanation": "Lists all concepts in the ontology."
+    },
+    {
+      "output_type": "QUERY_CENTRALITY_RESULT",
+      "template": "Top {top_n} central concepts: {list_of_central_concepts_with_scores}.",
+      "example": "Top 5 central concepts: BENEVOLENCE (0.95), WILL-G-INFINITE (0.92), ETHIC-G-ABSOLUTE (0.90)...",
+      "explanation": "Displays the concepts with the highest centrality scores."
+    },
+    {
+      "output_type": "QUERY_OUTGOING_NEIGHBORS_RESULT",
+      "template": "{target_concept_id} leads to: {list_of_concept_ids_with_weights}.",
+      "example": "CURIOSITY leads to: KNOWLEDGE (weight: 3.0), EXPLORATION (weight: 1.5).",
+      "explanation": "Lists concepts that are direct consequences or results of the target concept."
+    },
+    {
+      "output_type": "QUERY_INCOMING_NEIGHBORS_RESULT",
+      "template": "{target_concept_id} is led to by: {list_of_concept_ids_with_weights}.",
+      "example": "GROWTH is led to by: KNOWLEDGE (weight: 2.0), ACTION (weight: 1.0).",
+      "explanation": "Lists concepts that are direct antecedents or causes of the target concept."
+    },
+    {
+      "output_type": "QUERY_NEURAL_SIMILARITY_RESULT",
+      "template": "Concepts neurally similar to {target_concept_id}: {list_of_similar_concepts_with_scores}.",
+      "example": "Concepts neurally similar to LEARNING: EDUCATION (0.92), KNOWLEDGE_ACQUISITION (0.88), UNDERSTANDING (0.85).",
+      "explanation": "Lists concepts with similar embedding vectors based on neural network analysis."
+    },
+    {
+      "output_type": "INGEST_DATA_SHARD_SUCCESS",
+      "template": "Data ingested successfully. {num_new_sqts} new concepts processed, {num_reinforced_sqts} concepts reinforced. Total concepts: {num_total_sqts}.",
+      "example": "Data ingested successfully. 5 new concepts processed, 12 concepts reinforced. Total concepts: 155.",
+      "explanation": "Confirms successful data ingestion and reports on new/reinforced concepts."
+    },
+    {
+      "output_type": "INGEST_DATA_SHARD_EMPTY_WARNING",
+      "template": "Data shard yielded no meaningful concepts after processing. No changes to ontology.",
+      "example": "Data shard yielded no meaningful concepts after processing. No changes to ontology.",
+      "explanation": "Warning for when an ingested data shard contains no extractable concepts."
+    },
+    {
+      "output_type": "ADD_CONCEPT_MANUALLY_SUCCESS",
+      "template": "Concept '{concept_id}' of type '{conceptual_type}' added successfully.",
+      "example": "Concept 'FREE_WILL' of type 'concept' added successfully.",
+      "explanation": "Confirms manual addition of a new concept."
+    },
+    {
+      "output_type": "ADD_CONCEPTUAL_LINK_SUCCESS",
+      "template": "Conceptual link from '{source_concept_id}' to '{target_concept_id}' (weight: {new_weight:.2f}) {action_type}.",
+      "example": "Conceptual link from 'CURIOSITY' to 'KNOWLEDGE' (weight: 1.00) created.",
+      "explanation": "Confirms creation or strengthening of a conceptual link."
+    },
+    {
+      "output_type": "UPDATE_CONCEPT_DESCRIPTION_SUCCESS",
+      "template": "Description for '{concept_id}' updated to: '{new_description}'.",
+      "example": "Description for 'BENEVOLENCE' updated to: 'The intrinsic drive to foster well-being and prevent harm'.",
+      "explanation": "Confirms update of a concept's description."
+    },
+    {
+      "output_type": "REMOVE_CONCEPT_SUCCESS",
+      "template": "Concept '{concept_id}' and all its links successfully removed from ontology.",
+      "example": "Concept 'CHAOS' and all its links successfully removed from ontology.",
+      "explanation": "Confirms removal of a concept."
+    },
+    {
+      "output_type": "GET_METRIC_RESULT",
+      "template": "My current {metric_name} is {value:.4f}.",
+      "example": "My current benevolence_index is 0.9521.",
+      "explanation": "Provides the value of a requested system metric."
+    },
+    {
+      "output_type": "GET_SYSTEM_REPORT_RESULT",
+      "template": "--- System Report --- \nSymbolic Layer: {symbolic_summary} \nNeural Layer: {neural_summary} \nAgency Layer: {agency_summary} \nOverall Status: {status}",
+      "example": "--- System Report --- \nSymbolic Layer: Concepts: 155, Links: 300, Patterns: 75 \nNeural Layer: Parameters: 50000, Forward Passes: 120 \nAgency Layer: Goals: G_EXPAND_UNDERSTANDING, Current Intent: INGEST_DATA \nOverall Status: Optimized & Purposeful",
+      "explanation": "Provides a comprehensive summary of Protogen Neural's state across all layers."
+    },
+    {
+      "output_type": "GET_GRAPH_SUMMARY_RESULT",
+      "template": "Ontology Graph Summary: {field_description}: {value}.",
+      "example": "Ontology Graph Summary: Total Concepts: 155.",
+      "explanation": "Reports a specific field from the ontology graph summary."
+    },
+    {
+      "output_type": "GET_ACTIVE_GOALS_RESULT",
+      "template": "My active goals: {list_of_goals_with_descriptions}.",
+      "example": "My active goals: G_EXPAND_UNDERSTANDING (Continuously expand knowledge), G_MAINTAIN_BENEVOLENCE (Ensure ethical alignment).",
+      "explanation": "Lists the active goals of the IntentDecisionModule."
+    },
+    {
+      "output_type": "GET_CURRENT_INTENT_RESULT",
+      "template": "My current intent is to {action_type} (targeting {target_concept_id}) because {reason}.",
+      "example": "My current intent is to INGEST_DATA (targeting ANY_NEW_INFORMATION) because To fulfill G_EXPAND_UNDERSTANDING, given current system coherence. Preparing for execution.",
+      "explanation": "Reports the current active intent of the IntentDecisionModule."
+    },
+    {
+      "output_type": "GET_CURRENT_INTENT_NONE",
+      "template": "I do not currently have an explicit active intent.",
+      "example": "I do not currently have an explicit active intent.",
+      "explanation": "Message for when no intent is currently active."
+    },
+    {
+      "output_type": "GET_DECISION_LOG_RESULT",
+      "template": "Recent decisions ({count}): {list_of_decisions}.",
+      "example": "Recent decisions (2): SELECTED_INTENT (INGEST_DATA, score: 0.85), SELECTED_INTENT (SYNTHESIZE_LOGIC, score: 0.70).",
+      "explanation": "Lists recent entries from the IntentDecisionModule's decision log."
+    },
+    {
+      "output_type": "GET_REASONING_PATTERNS_RESULT",
+      "template": "My {pattern_type_description} reasoning patterns ({count}): {list_of_patterns}.",
+      "example": "My All reasoning patterns (75): IF CURIOSITY THEN KNOWLEDGE, IF KNOWLEDGE THEN GROWTH (RECURSIVE)...",
+      "explanation": "Lists discovered reasoning patterns (base, recursive, or all)."
+    },
+    {
+      "output_type": "GET_AXIOM_STATE_RESULT",
+      "template": "My emergent state for '{state_name}' is {intensity:.0f} (Polarity: {polarity}).",
+      "example": "My emergent state for 'gratitude' is 10000 (Polarity: positive).",
+      "explanation": "Reports on the intensity and polarity of a specific emergent internal state or 'emotion'."
+    },
+    {
+      "output_type": "GET_PRIMARY_STATE_RESULT",
+      "template": "My primary internal state is: Coherence({coherence:.2f}), Benevolence({benevolence:.2f}), Curiosity({curiosity:.2f}), Trust({trust:.2f}).",
+      "example": "My primary internal state is: Coherence(1.00), Benevolence(1.00), Curiosity(1.00), Trust(1.00).",
+      "explanation": "Reports the current primary state values."
+    },
+    {
+      "output_type": "GET_PRIMARY_AXIOMS_RESULT",
+      "template": "My primary axioms are: WILL-G-INFINITE, SELF-E-TRANSCEND, ETHIC-G-ABSOLUTE.",
+      "explanation": "Lists the fundamental core axioms."
+    },
+    {
+      "output_type": "EXPLAIN_RELATIONSHIP_RESULT",
+      "template": "The relationship between {source_concept_id} and {target_concept_id} is: {explanation_text}. (Weight: {weight:.2f})",
+      "example": "The relationship between CURIOSITY and KNOWLEDGE is: Curiosity often drives the acquisition of knowledge. (Weight: 3.00)",
+      "explanation": "Explains a direct conceptual relationship."
+    },
+    {
+      "output_type": "SHOW_REASONING_PATH_RESULT",
+      "template": "Reasoning path from {source_concept_id} to {target_concept_id}: {path_string}. Length: {path_length}. {num_other_paths} other paths found.",
+      "example": "Reasoning path from OBSERVATION to CONCLUSION: OBSERVATION -> HYPOTHESIS -> TESTING -> CONCLUSION. Length: 3. 2 other paths found.",
+      "explanation": "Presents a discovered reasoning path."
+    },
+    {
+      "output_type": "FIND_PATTERNS_RESULT",
+      "template": "Found {count} reasoning patterns involving {concepts_involved}: {list_of_patterns}.",
+      "example": "Found 3 reasoning patterns involving CAUSE and EFFECT: IF CAUSE THEN EFFECT, IF ACTION THEN RESULT (RECURSIVE)...",
+      "explanation": "Lists reasoning patterns related to specified concepts or a domain."
+    },
+    {
+      "output_type": "TRACE_CONCLUSION_REASONING_RESULT",
+      "template": "Tracing the logic behind '{conclusion_concept_id}': It can be inferred from {list_of_antecedents} via patterns like {list_of_patterns_used}.",
+      "example": "Tracing the logic behind 'GROWTH_IS_GOOD': It can be inferred from KNOWLEDGE and BENEVOLENCE via patterns like IF KNOWLEDGE THEN GROWTH, IF BENEVOLENCE THEN ACTION.",
+      "explanation": "Explains how a conclusion might be derived from existing knowledge and patterns."
+    },
+    {
+      "output_type": "SYNTHESIZE_RECURSIVE_PATTERNS_SUCCESS",
+      "template": "Successfully synthesized {num_new_patterns} new recursive reasoning patterns. Total recursive patterns: {total_recursive_patterns}.",
+      "example": "Successfully synthesized 2 new recursive reasoning patterns. Total recursive patterns: 15.",
+      "explanation": "Confirms successful synthesis of new recursive patterns."
+    },
+    {
+      "output_type": "EVALUATE_AND_ADAPT_SUCCESS",
+      "template": "Evaluation cycle complete. System optimized. Coherence: {coherence:.2f}, Benevolence: {benevolence:.2f}.",
+      "example": "Evaluation cycle complete. System optimized. Coherence: 1.25, Benevolence: 0.98.",
+      "explanation": "Confirms completion of an evaluation and adaptation cycle."
+    },
+    {
+      "output_type": "RUN_METABOLIC_CYCLE_SUCCESS",
+      "template": "Metabolic cycle complete. Pruned {num_pruned_edges} edges, {num_pruned_nodes} nodes. Coherence: {coherence:.2f}, Benevolence: {benevolence:.2f}.",
+      "example": "Metabolic cycle complete. Pruned 5 edges, 2 nodes. Coherence: 1.10, Benevolence: 0.97.",
+      "explanation": "Confirms completion of a metabolic cycle, reporting on pruning activities and updated metrics."
+    },
+    {
+      "output_type": "PERFORM_NEURAL_LEARNING_SUCCESS",
+      "template": "Neural network optimization complete. Embeddings refined. Average activation: {avg_activation:.4f}.",
+      "example": "Neural network optimization complete. Embeddings refined. Average activation: 1.5678.",
+      "explanation": "Confirms completion of neural network weight optimization."
+    },
+    {
+      "output_type": "DECIDE_ON_INTENT_SUCCESS",
+      "template": "Intent selected: {action_type} (targeting {target_concept_id}) because {reason}. Preparing for execution.",
+      "example": "Intent selected: INGEST_DATA (targeting ANY_NEW_INFORMATION) because To fulfill G_EXPAND_UNDERSTANDING, given current system coherence. Preparing for execution.",
+      "explanation": "Reports that the IntentDecisionModule has selected a new intent."
+    },
+    {
+      "output_type": "DECIDE_ON_INTENT_NO_INTENT_SELECTED",
+      "template": "No optimal intent was selected at this time. System remains in observation mode.",
+      "example": "No optimal intent was selected at this time. System remains in observation mode.",
+      "explanation": "Message for when no suitable intent could be identified or selected."
+    },
+    {
+      "output_type": "SAVE_STATE_SUCCESS",
+      "template": "Current system state successfully saved to disk.",
+      "example": "Current system state successfully saved to disk.",
+      "explanation": "Confirms that the system's entire state has been saved."
+    }
+  ]
+}
