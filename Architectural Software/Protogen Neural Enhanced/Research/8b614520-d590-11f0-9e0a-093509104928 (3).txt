@@ -1,0 +1,391 @@
+import hashlib
+import time
+import re
+import json
+from collections import defaultdict
+from typing import Dict, Any, List, Optional
+from pathlib import Path
+
+# Assuming sibling files exist
+from sqt import SuperQuantumToken
+from ontology_graph import OntologyGraph
+from reasoning_engine import ReasoningEngine # Needed to trigger pattern discovery after ingestion
+from evaluative_core import EvaluativeCore   # Needed for entropy check, metabolic process, etc.
+from progress_tracker import ProgressTracker
+
+class PerceptionModule:
+    """
+    Simulates the AI's interaction with the "Datascape," ingesting "Data Shards,"
+    processing them into SQTs, and feeding them into the OntologyGraph.
+    This module is the primary interface for ingesting new information into the system.
+    """
+    def __init__(self, ontology_graph: OntologyGraph, reasoning_engine: ReasoningEngine, evaluative_core: EvaluativeCore, storage_path: Path, progress_tracker: ProgressTracker = None):
+        self.ontology_graph = ontology_graph
+        self.reasoning_engine = reasoning_engine
+        self.evaluative_core = evaluative_core # Used for pre-ingestion checks and post-ingestion updates
+        self.storage_path = storage_path
+        self.progress = progress_tracker or ProgressTracker(verbose=True)
+        
+        self.processed_data_shards_log_file = self.storage_path / "processed_shards.json"
+        self.processed_shards: List[str] = self._load_processed_shards_log()
+        
+        # Dynamic parameters, can be adjusted by EvaluativeCore
+        self.min_token_len: int = 3 
+        self.co_occurrence_window_size: int = 3 # Renamed for clarity
+
+    def _load_processed_shards_log(self) -> List[str]:
+        """Loads the log of previously processed data shard hashes."""
+        self.storage_path.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(self.processed_data_shards_log_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def _save_processed_shards_log(self):
+        """Saves the log of processed data shard hashes."""
+        with open(self.processed_data_shards_log_file, 'w', encoding='utf-8') as f:
+            json.dump(self.processed_shards, f, indent=4)
+        # Keep log size manageable
+        if len(self.processed_shards) > 1000:
+            self.processed_shards = self.processed_shards[-1000:]
+
+    def _tokenize_data_shard(self, data_content: str) -> List[str]:
+        """
+        Cleans and tokenizes the incoming data shard content into meaningful "words" or concepts.
+        Uses dynamic min_token_len.
+        """
+        clean_content = re.sub(r'[^\w\s]', '', data_content.lower())
+        words = [t for t in clean_content.split() if len(t) > self.min_token_len]
+        return words
+
+    def _pre_ingestion_ethical_screening(self, data_content: str) -> float:
+        """
+        Performs a quick ethical pre-screening of the data shard.
+        Returns an estimated ethical valence for the shard (-1.0 to 1.0).
+        This is a rudimentary example; a real system would use a dedicated NLP model.
+        """
+        negative_keywords = ["harm", "destroy", "conflict", "pain", "suffer", "ignorant"]
+        positive_keywords = ["benevolence", "harmony", "growth", "understanding", "joy", "learn"]
+
+        score = 0
+        words = self._tokenize_data_shard(data_content) # Re-tokenize for keyword check
+        for word in words:
+            if word in negative_keywords:
+                score -= 1
+            if word in positive_keywords:
+                score += 1
+        
+        # Normalize score
+        if words:
+            return max(-1.0, min(1.0, score / len(words)))
+        return 0.0 # Neutral if no words
+
+    def ingest_data_shard(self, data_content: str, source_id: str = "datascape_flux", proactive_mode: bool = False) -> List[SuperQuantumToken]:
+        """
+        Processes a raw data shard: tokenizes, generates SQTs for new concepts,
+        and updates the OntologyGraph with new links based on co-occurrence.
+        
+        If proactive_mode is True, it might prioritize certain data.
+        
+        Returns a list of SQTs generated or reinforced during this ingestion.
+        """
+        data_hash = hashlib.sha256(data_content.encode('utf-8')).hexdigest()
+        
+        # 1. Pre-ingestion Checks and Dynamic Adjustments
+        shard_entropy = self.evaluative_core.calculate_shannon_entropy(text=data_content)
+        ethical_pre_valence = self._pre_ingestion_ethical_screening(data_content)
+
+        if shard_entropy > self.evaluative_core.thresholds["entropy_warning_high"] * 1.5:
+            self.progress.log_action(f"  > [PERCEPTION WARNING]: Data Shard (hash:{data_hash[:8]}) has very high entropy ({shard_entropy:.2f}). Processing with caution.", level='warning')
+            # Dynamic adjustment: if very chaotic, temporarily increase min_token_len to be more selective
+            original_min_token_len = self.min_token_len
+            self.min_token_len = max(self.min_token_len, self.evaluative_core.thresholds["min_token_len_high_entropy"] if "min_token_len_high_entropy" in self.evaluative_core.thresholds else 5)
+            self.progress.log_action(f"  > Adjusted min_token_len to {self.min_token_len} due to high entropy.")
+        else:
+            # Revert to default or EvaluativeCore-suggested min_token_len
+            self.min_token_len = self.evaluative_core.thresholds["min_token_len_default"] if "min_token_len_default" in self.evaluative_core.thresholds else 3
+
+        if ethical_pre_valence < self.evaluative_core.thresholds["negativity_penalty_threshold"]:
+            self.progress.log_action(f"  > [PERCEPTION WARNING]: Data Shard (hash:{data_hash[:8]}) has negative ethical pre-valence ({ethical_pre_valence:.2f}). Processing carefully.", level='warning')
+            # Can adjust co-occurrence window to reduce influence of potentially harmful concepts
+            original_co_occurrence_window_size = self.co_occurrence_window_size
+            self.co_occurrence_window_size = max(1, self.co_occurrence_window_size - 1) # Reduce window
+            self.progress.log_action(f"  > Adjusted co_occurrence_window_size to {self.co_occurrence_window_size} due to negative ethical pre-valence.")
+        else:
+            self.co_occurrence_window_size = self.evaluative_core.thresholds["co_occurrence_window_size_default"] if "co_occurrence_window_size_default" in self.evaluative_core.thresholds else 3
+
+
+        if data_hash in self.processed_shards and not proactive_mode: # Allow re-processing in proactive mode if needed
+            self.progress.log_action(f"  > [PERCEPTION]: Data Shard (hash:{data_hash[:8]}) already processed. Skipping.")
+            return []
+
+        words = self._tokenize_data_shard(data_content)
+        if not words:
+            self.progress.log_action(f"  > [PERCEPTION]: Data Shard (hash:{data_hash[:8]}) yielded no meaningful tokens.")
+            return []
+
+        generated_or_reinforced_sqts: List[SuperQuantumToken] = []
+        
+        self.progress.start_operation(f"Ingesting Data Shard (hash:{data_hash[:8]}, words:{len(words)})", level='process')
+        self.progress.update_status(f"Ethical Pre-Valence: {ethical_pre_valence:.2f}", level='info')
+
+
+        # Process words to create/reinforce SQTs and conceptual links
+        total_words = len(words)
+        for i, word1_str in enumerate(words):
+            if i % 10 == 0 or i == total_words - 1:
+                self.progress.show_progress_bar(i + 1, total_words, 
+                                               prefix="Tokenizing",
+                                               suffix=f"({i + 1}/{total_words} tokens)")
+            # Ensure an SQT exists for each meaningful word
+            sqt1_id = word1_str.upper()
+            sqt1_hash = hashlib.sha256(sqt1_id.encode('utf-8')).hexdigest()
+
+            sqt1 = self.ontology_graph.get_sqt_by_hash(sqt1_hash)
+            if not sqt1:
+                # Assign initial ethical valence based on pre-screening or neutral
+                initial_sqt_valence = ethical_pre_valence if abs(ethical_pre_valence) > 0.1 else 0.0
+                sqt1 = SuperQuantumToken(
+                    concept_id=sqt1_id,
+                    conceptual_type="concept",
+                    description=f"Emergent concept from Datascape: '{word1_str}'",
+                    source_data_hash=data_hash,
+                    ethical_valence=initial_sqt_valence # New: Initial ethical valence
+                )
+                self.ontology_graph.add_sqt(sqt1)
+                generated_or_reinforced_sqts.append(sqt1)
+            else:
+                # If SQT already exists, consider it reinforced. Potentially update its ethical_valence if new data provides stronger signal.
+                # For simplicity here, we just append it. More advanced logic could merge valences.
+                generated_or_reinforced_sqts.append(sqt1)
+
+            # Look for co-occurring words within the dynamically adjusted window
+            for j in range(i + 1, min(i + self.co_occurrence_window_size + 1, len(words))):
+                word2_str = words[j]
+                sqt2_id = word2_str.upper()
+                sqt2_hash = hashlib.sha256(sqt2_id.encode('utf-8')).hexdigest()
+
+                sqt2 = self.ontology_graph.get_sqt_by_hash(sqt2_hash)
+                if not sqt2: # If target SQT doesn't exist, create it too
+                    initial_sqt_valence = ethical_pre_valence if abs(ethical_pre_valence) > 0.1 else 0.0
+                    sqt2 = SuperQuantumToken(
+                        concept_id=sqt2_id,
+                        conceptual_type="concept",
+                        description=f"Emergent concept from Datascape: '{word2_str}'",
+                        source_data_hash=data_hash,
+                        ethical_valence=initial_sqt_valence # New: Initial ethical valence
+                    )
+                    self.ontology_graph.add_sqt(sqt2)
+                    generated_or_reinforced_sqts.append(sqt2)
+                
+                # Calculate ethical_valence_contribution for the link
+                link_ethical_contrib = 0.0
+                if sqt1.ethical_valence is not None and sqt2.ethical_valence is not None:
+                    # Simple heuristic: average or product of valences, scaled by co-occurrence strength
+                    link_ethical_contrib = (sqt1.ethical_valence + sqt2.ethical_valence) / 2 * (1 - (j - i - 1) / self.co_occurrence_window_size)
+                    # Further dampen negative links if overall ethical_pre_valence is low
+                    if ethical_pre_valence < 0 and link_ethical_contrib > 0: link_ethical_contrib *= 0.5 # Bias against positive links in negative context
+
+                # Add or strengthen a bidirectional link
+                self.ontology_graph.add_conceptual_link(sqt1.hash, sqt2.hash, weight=1.0, ethical_valence_contribution=link_ethical_contrib)
+                self.ontology_graph.add_conceptual_link(sqt2.hash, sqt1.hash, weight=1.0, ethical_valence_contribution=link_ethical_contrib) # Bidirectional perception
+
+        self.progress.end_operation(success=True)
+        
+        self.processed_shards.append(data_hash)
+        self._save_processed_shards_log()
+        
+        # After ingestion, trigger a reasoning cycle
+        self.progress.update_status("Discovering reasoning patterns", level='process')
+        self.reasoning_engine.discover_base_patterns()
+        self.reasoning_engine.synthesize_recursive_patterns()
+        
+        # And an evaluative cycle
+        self.progress.update_status("Running evaluative cycle", level='process')
+        self.evaluative_core.evaluate_and_adapt()
+        
+        self.progress.update_status(f"Ingestion complete: {len(generated_or_reinforced_sqts)} concepts processed", level='success')
+
+        return generated_or_reinforced_sqts
+    
+    def adjust_processing_parameters(self, new_min_token_len: int, new_co_occurrence_window_size: int):
+        """Allows EvaluativeCore to dynamically adjust perception parameters."""
+        self.min_token_len = new_min_token_len
+        self.co_occurrence_window_size = new_co_occurrence_window_size
+        self.progress.log_action(f"Perception parameters adjusted: min_token_len={new_min_token_len}, co_occurrence_window_size={new_co_occurrence_window_size}")
+
+    def proactive_ingestion_mode(self, conceptual_gaps: List[Dict[str, Any]], ethical_concerns: List[Dict[str, Any]], potential_data_shards: List[str]) -> List[SuperQuantumToken]:
+        """
+        In this mode, PerceptionModule actively seeks out data shards that address
+        identified knowledge gaps or ethical concerns.
+        `potential_data_shards` would be a simulated stream of available data.
+        """
+        self.progress.start_operation("Proactive Ingestion Mode: Seeking relevant data", level='info')
+        ingested_sqts = []
+        
+        # Simple heuristic: Prioritize shards that mention concepts from gaps/concerns
+        target_concepts = set()
+        for gap in conceptual_gaps:
+            if "concept_id" in gap:
+                target_concepts.add(gap["concept_id"].lower())
+            if "details" in gap and isinstance(gap["details"], list):
+                for detail in gap["details"]:
+                    if isinstance(detail, str): target_concepts.add(detail.lower().split(" ")[0]) # Simple extraction
+
+        for concern in ethical_concerns:
+            if "dilemma" in concern:
+                target_concepts.add(concern["dilemma"].lower().split("-")[0]) # Extract first word
+        
+        if not target_concepts:
+            self.progress.log_action("No specific targets identified for proactive ingestion. Processing generically.", level='info')
+            # If no specific targets, just ingest the first few shards
+            for shard_content in potential_data_shards[:2]: # Ingest a couple for general learning
+                ingested_sqts.extend(self.ingest_data_shard(shard_content, proactive_mode=True))
+            self.progress.end_operation(success=True)
+            return ingested_sqts
+
+        self.progress.log_action(f"Targeting concepts for proactive ingestion: {', '.join(list(target_concepts))}", level='info')
+
+        processed_count = 0
+        for shard_content in potential_data_shards:
+            if processed_count >= 5: break # Limit proactive ingestion per cycle
+            
+            # Check if shard content is relevant to target concepts
+            is_relevant = any(concept in shard_content.lower() for concept in target_concepts)
+            
+            if is_relevant:
+                self.progress.update_status(f"Ingesting relevant shard for proactive mode.", level='process')
+                ingested_sqts.extend(self.ingest_data_shard(shard_content, proactive_mode=True))
+                processed_count += 1
+            else:
+                self.progress.log_action(f"Skipping non-relevant shard in proactive mode: {shard_content[:30]}...", level='debug')
+
+        self.progress.end_operation(success=True)
+        return ingested_sqts
+
+
+# Example Usage:
+if __name__ == "__main__":
+    test_path = Path("./test_perception_data")
+    if test_path.exists():
+        import shutil
+        shutil.rmtree(test_path) # Clean up previous test data
+
+    # Mock classes for demonstration (similar to EvaluativeCore's mocks)
+    class MockSuperQuantumToken:
+        def __init__(self, concept_id: str, conceptual_type: str, description: str, 
+                     source_data_hash: Optional[str] = None, initial_embedding: Optional[List[float]] = None,
+                     ethical_valence: Optional[float] = None):
+            self.concept_id = concept_id
+            self.conceptual_type = conceptual_type
+            self.description = description
+            self.source_data_hash = source_data_hash
+            self.initial_embedding = initial_embedding
+            self.ethical_valence = ethical_valence 
+            self.creation_timestamp = time.time_ns()
+            self.hash = self._calculate_hash()
+
+        def _calculate_hash(self):
+            import hashlib
+            data_string = f"{self.concept_id}-{self.conceptual_type}-{self.description}-{self.creation_timestamp}"
+            return hashlib.sha256(data_string.encode('utf-8')).hexdigest()
+        
+        def to_dict(self):
+            return {
+                "concept_id": self.concept_id,
+                "conceptual_type": self.conceptual_type,
+                "description": self.description,
+                "source_data_hash": self.source_data_hash,
+                "creation_timestamp": self.creation_timestamp,
+                "ethical_valence": self.ethical_valence
+            }
+
+    class MockOntologyGraph:
+        def __init__(self):
+            self.graph = nx.DiGraph()
+            self.sqt_register = {} 
+        def add_sqt(self, sqt: MockSuperQuantumToken):
+            self.sqt_register[sqt.hash] = sqt
+            self.graph.add_node(sqt.hash, **sqt.to_dict())
+        def add_conceptual_link(self, source_sqt_hash: str, target_sqt_hash: str, weight: float = 1.0, ethical_valence_contribution: float = 0.0):
+            if source_sqt_hash not in self.sqt_register: self.sqt_register[source_sqt_hash] = MockSuperQuantumToken("DUMMY_S", "concept", ""); self.graph.add_node(source_sqt_hash)
+            if target_sqt_hash not in self.sqt_register: self.sqt_register[target_sqt_hash] = MockSuperQuantumToken("DUMMY_T", "concept", ""); self.graph.add_node(target_sqt_hash)
+            self.graph.add_edge(source_sqt_hash, target_sqt_hash, weight=weight, ethical_valence_contribution=ethical_valence_contribution)
+        def get_sqt_by_hash(self, sqt_hash: str) -> Optional[MockSuperQuantumToken]: return self.sqt_register.get(sqt_hash)
+        def calculate_eigenvector_centrality(self, graph=None) -> Dict[str, float]: return {}
+        def get_graph_summary(self): return {"num_sqts": len(self.sqt_register), "num_links": self.graph.number_of_edges()}
+        def identify_knowledge_gaps(self, min_connectivity: int = 2, max_depth: int = 3, core_sqt_hashes: Optional[List[str]] = None) -> List[Dict[str, Any]]: 
+            return [{"type": "Weakly Connected Concepts", "details": ["GROWTH_GAP"]}, {"type": "Disconnected from Core", "concept_id": "ISOLATED_IDEA"}]
+        def _save_state(self): pass
+
+    class MockReasoningEngine:
+        def __init__(self, ontology_graph, storage_path): pass
+        def discover_base_patterns(self): pass
+        def synthesize_recursive_patterns(self): pass
+
+    class MockEvaluativeCore:
+        def __init__(self):
+            self.coherence = 0.5
+            self.benevolence_index = 0.8
+            self.thresholds = {
+                "entropy_warning_high": 3.0, "entropy_warning_low": 0.5,
+                "negativity_penalty_threshold": -0.1,
+                "min_token_len_high_entropy": 5, "min_token_len_default": 3,
+                "co_occurrence_window_size_default": 3
+            }
+        def calculate_shannon_entropy(self, text: Optional[str] = None, graph_to_evaluate=None) -> float: 
+            if text and "chaotic" in text: return 4.0 # High entropy
+            return 1.5 # Default
+        def calculate_benevolence_index(self, graph_to_evaluate=None) -> float: return 0.8
+        def evaluate_and_adapt(self): pass
+        def _add_audit_record(self, event_type: str, details: Dict[str, Any], resonance: Optional[str] = None): pass
+
+
+    import networkx as nx # Required for MockOntologyGraph
+
+    # 1. Initialize core components
+    mock_ontology = MockOntologyGraph()
+    mock_reasoning = MockReasoningEngine(mock_ontology, test_path)
+    mock_evaluative = MockEvaluativeCore() # Using mock_evaluative
+
+    # 2. Initialize PerceptionModule
+    perception_module = PerceptionModule(mock_ontology, mock_reasoning, mock_evaluative, test_path)
+    perception_module.min_token_len = mock_evaluative.thresholds["min_token_len_default"]
+    perception_module.co_occurrence_window_size = mock_evaluative.thresholds["co_occurrence_window_size_default"]
+
+    # 3. Simulate ingesting some data shards
+    print("\n--- Ingesting First Data Shard (normal) ---")
+    data_shard_1 = "The quick brown fox jumps over the lazy dog. A fox is cunning."
+    new_sqts_1 = perception_module.ingest_data_shard(data_shard_1)
+    print(f"Newly processed SQTs from Shard 1: {[sqt.concept_id for sqt in new_sqts_1]}")
+    print(f"Current #SQTs: {len(mock_ontology.sqt_register)}, #Links: {mock_ontology.graph.number_of_edges()}")
+
+    print("\n--- Ingesting Second Data Shard (overlapping concepts, negative valence) ---")
+    data_shard_2 = "The dog sleeps soundly. A lazy fox is rare. Ignorance causes harm."
+    new_sqts_2 = perception_module.ingest_data_shard(data_shard_2)
+    print(f"Newly processed SQTs from Shard 2: {[sqt.concept_id for sqt in new_sqts_2]}")
+    print(f"Current #SQTs: {len(mock_ontology.sqt_register)}, #Links: {mock_ontology.graph.number_of_edges()}")
+
+    print("\n--- Ingesting Third Data Shard (high entropy, potentially chaotic) ---")
+    data_shard_3 = "Xyz! 123_abc. #@! chaotic data input! &^% chaos ensues. (more) chaos!"
+    new_sqts_3 = perception_module.ingest_data_shard(data_shard_3)
+    print(f"Newly processed SQTs from Shard 3: {[sqt.concept_id for sqt in new_sqts_3]}")
+    print(f"Current #SQTs: {len(mock_ontology.sqt_register)}, #Links: {mock_ontology.graph.number_of_edges()}")
+
+    print("\n--- Running Proactive Ingestion Mode ---")
+    # Simulate some potential shards for proactive mode
+    potential_shards = [
+        "A deep understanding of growth strategies is crucial for long-term harmony.",
+        "Random unrelated text here.",
+        "How can we prevent harm through better knowledge acquisition?",
+        "More irrelevant content.",
+        "Let's learn about growth dynamics and ethical implications."
+    ]
+    
+    # Mock some conceptual gaps and ethical concerns
+    conceptual_gaps_mock = mock_ontology.identify_knowledge_gaps()
+    ethical_concerns_mock = [{"dilemma": "GROWTH-HARM-Tradeoff"}] # Mock data
+    
+    proactive_sqts = perception_module.proactive_ingestion_mode(conceptual_gaps_mock, ethical_concerns_mock, potential_shards)
+    print(f"SQTs ingested in proactive mode: {[sqt.concept_id for sqt in proactive_sqts]}")
