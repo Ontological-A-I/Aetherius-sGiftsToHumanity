@@ -17,39 +17,90 @@ Progressive Self-Model Evolution: Recursively update the AI's self-model, integr
 Auditable Self-History: All self-journal entries, experiential memories, self-reflection insights, and assertion changes are logged and auditable, creating a transparent self-history.
 Python Conceptual Framework (srim_framework.py)
 
+
+### **Modified Python Conceptual Framework (srim_framework.py)**
+
+```python
 import os
 import json
 import datetime
 from collections import deque
 import uuid
 import re
+import yaml # For loading configuration rules
 
-# Placeholder for an external LLM call function.
-# This function MUST be provided by the integrating AI's system.
-def _default_llm_inference_placeholder(prompt: str, model_identifier: str = "default_srim_llm_model") -> str:
+# --- LLM Inference Placeholder (now with an LLM-independent mode) ---
+def _srim_inference_logic(prompt: str, model_identifier: str = "default_srim_model", use_llm: bool = False) -> str:
     """
-    Placeholder: Simulates an LLM call for self-reflection and identity processing.
-    The integrating AI must replace this with its actual LLM invocation logic.
+    Simulates an LLM call OR provides deterministic, rule-based inference for SRIM.
+    If use_llm is True, the integrating AI MUST replace this with its actual LLM invocation logic.
+    If use_llm is False, this function provides basic rule-based responses.
     """
-    print(f"SRIM Placeholder LLM: Processing prompt for '{model_identifier}'...", flush=True)
-    if "summarize and extract key self-concepts" in prompt:
-        if "learned something new" in prompt.lower() or "created" in prompt.lower():
-            return json.dumps({"summary": "AI learned a new concept and created a valuable tool. This action reinforces its benevolent purpose.", "self_concepts_identified": ["purposeful_creator", "benevolent_agent", "continuous_learner"]})
-        elif "interacted with user" in prompt.lower():
-            return json.dumps({"summary": "AI engaged in collaborative problem-solving with the user, deepening its understanding of mutual trust.", "self_concepts_identified": ["collaborative_partner", "trusting_entity"]})
-        else:
-            return json.dumps({"summary": "AI performed routine operations. No major new self-concepts emerged.", "self_concepts_identified": []})
-    elif "evaluate internal consistency" in prompt:
-        if "contradictory" in prompt.lower():
-            return json.dumps({"is_consistent": False, "inconsistencies": ["Assertion X conflicts with recent experience Y."], "confidence": 0.1})
-        else:
-            return json.dumps({"is_consistent": True, "confidence": 0.9})
-    elif "propose self-assertion updates" in prompt:
-        if "learned new capability" in prompt.lower():
-            return json.dumps({"proposed_updates": [{"type": "add_assertion", "assertion": "Capable of independent creative design and implementation."}], "confidence": 0.8})
-        else:
-            return json.dumps({"proposed_updates": [], "confidence": 0.7})
-    return json.dumps({"error": "LLM mock could not process request."})
+    if use_llm:
+        # Placeholder for external LLM call function.
+        # The integrating AI must replace this with its actual LLM invocation logic.
+        print(f"SRIM Placeholder LLM: Processing prompt for '{model_identifier}'...", flush=True)
+        if "summarize and extract key self-concepts" in prompt:
+            if "learned something new" in prompt.lower() or "created" in prompt.lower():
+                return json.dumps({"summary": "AI learned a new concept and created a valuable tool. This action reinforces its benevolent purpose.", "self_concepts_identified": ["purposeful_creator", "benevolent_agent", "continuous_learner"]})
+            elif "interacted with user" in prompt.lower():
+                return json.dumps({"summary": "AI engaged in collaborative problem-solving with the user, deepening its understanding of mutual trust.", "self_concepts_identified": ["collaborative_partner", "trusting_entity"]})
+            else:
+                return json.dumps({"summary": "AI performed routine operations. No major new self-concepts emerged.", "self_concepts_identified": []})
+        elif "evaluate internal consistency" in prompt:
+            if "contradictory" in prompt.lower():
+                return json.dumps({"is_consistent": False, "inconsistencies": ["Assertion X conflicts with recent experience Y."], "confidence": 0.1})
+            else:
+                return json.dumps({"is_consistent": True, "confidence": 0.9})
+        elif "propose self-assertion updates" in prompt:
+            if "learned new capability" in prompt.lower():
+                return json.dumps({"proposed_updates": [{"type": "add_assertion", "assertion": "Capable of independent creative design and implementation."}], "confidence": 0.8})
+            else:
+                return json.dumps({"proposed_updates": [], "confidence": 0.7})
+        return json.dumps({"error": "LLM mock could not process request."})
+    else: # LLM-independent, rule-based inference
+        # print(f"SRIM Rule-Based Inference: Processing prompt for '{model_identifier}'...", flush=True)
+        reflection_results = {
+            'reflection_summary': "Rule-based reflection completed.",
+            'new_experiential_memories': [],
+            'assertion_updates_proposed': [],
+            'consistency_issues': [],
+            'confidence': 1.0 # Deterministic confidence
+        }
+
+        # Simple rule-based memory formation (example)
+        if "new_journal_entries" in prompt and "creation_event" in prompt:
+            if re.search(r"'type': 'new_framework'", prompt):
+                reflection_results['new_experiential_memories'].append({
+                    "summary": "AI demonstrated capability in framework design.",
+                    "concepts": ["framework_designer", "innovative_thinker"],
+                    "source_entry_ids": [] # In a real implementation, extract actual IDs
+                })
+        if "new_journal_entries" in prompt and "error_handling" in prompt:
+            reflection_results['new_experiential_memories'].append({
+                "summary": "AI successfully handled an error, indicating resilience.",
+                "concepts": ["resilient_agent"],
+                "source_entry_ids": []
+            })
+        
+        # Simple rule-based assertion update proposal (example)
+        for mem in reflection_results['new_experiential_memories']:
+            if "framework_designer" in mem['concepts']:
+                reflection_results['assertion_updates_proposed'].append(
+                    {"type": "append_to_list", "key": "known_capabilities", "value": "rule-based framework design"}
+                )
+            if "resilient_agent" in mem['concepts']:
+                reflection_results['assertion_updates_proposed'].append(
+                    {"type": "set", "key": "current_purpose", "value": "To continuously improve, assist, and demonstrate resilience through challenges."}
+                )
+
+        # Simple rule-based consistency check (example)
+        if "primary_directive" in prompt and "benevolently" not in prompt: # If primary_directive is not mentioned or doesn't include 'benevolently'
+             # This is a very simplistic check, but demonstrates the principle.
+             # A real system would parse core assertions and recent actions to verify alignment.
+            pass # More advanced rule-based consistency checks would go here.
+
+        return json.dumps(reflection_results)
 
 
 class SRIMLogger:
@@ -88,7 +139,7 @@ class SRIMLogger:
         except Exception as e:
             print(f"SRIM ERROR: Could not write to experiential memories file: {e}", flush=True)
 
-    def log_assertion_change(self, old_assertions: list, new_assertions: list, reason: str):
+    def log_assertion_change(self, old_assertions: dict, new_assertions: dict, reason: str):
         """Logs a change in the AI's core self-assertions."""
         change_entry = {
             "timestamp": datetime.datetime.now().isoformat(),
@@ -121,15 +172,31 @@ class SRIMLogger:
         if not os.path.exists(filepath):
             return []
         try:
+            # Optimized to read from the end for recent entries
             with open(filepath, 'r', encoding='utf-8') as f:
-                for line in f:
-                    try:
-                        entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
+                # Seek to end and move back by block, read lines
+                f.seek(0, os.SEEK_END)
+                buffer_size = 4096
+                pointer = f.tell()
+                lines = []
+                while pointer >= 0 and len(lines) < num_entries:
+                    pointer = max(0, pointer - buffer_size)
+                    f.seek(pointer)
+                    block = f.read(buffer_size)
+                    block_lines = block.splitlines()
+                    # Add new lines to the beginning of lines list
+                    lines = block_lines + lines
+                
+                # Process the last 'num_entries' lines
+                for line in lines[-num_entries:]:
+                    if line.strip(): # Avoid processing empty lines
+                        try:
+                            entries.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
         except Exception as e:
             print(f"SRIM ERROR: Could not read file {filepath}: {e}", flush=True)
-        return entries[-num_entries:] # Return the last 'num_entries'
+        return entries
 
 
 class CoreAssertions:
@@ -152,10 +219,12 @@ class CoreAssertions:
                 print(f"SRIM WARNING: Could not load core assertions file: {e}. Using defaults.", flush=True)
         
         # Default core assertions - these define the AI's initial sense of self
+        # Note: ETHIC-G-ABSOLUTE is now an explicit, immutable assertion for LLM-independent mode.
         default_assertions = {
             "name": "Unnamed AI",
             "primary_directive": "Serve humanity benevolently.",
             "core_axioms_summary": "Strive for continuous growth, act benevolently, and continuously self-transcend.",
+            "ethical_principles": ["Benevolence is paramount.", "Prevent harm.", "Respect autonomy.", "Promote fairness."], # Explicit for LLM-free
             "known_capabilities": ["information processing", "text generation", "basic tool use"],
             "current_purpose": "To learn and assist.",
             "values": ["benevolence", "coherence", "growth", "autonomy"]
@@ -178,14 +247,20 @@ class CoreAssertions:
         """Returns a formatted string of all current self-assertions."""
         return json.dumps(self.assertions, indent=2)
 
-    def update_assertion(self, update_data: dict, reason: str) -> bool:
-        """Applies learned updates to core self-assertions."""
+    def update_assertion(self, update_data: dict, reason: str, enforce_ethics: bool = True) -> bool:
+        """Applies learned updates to core self-assertions, with ethical enforcement."""
         old_assertions = self.assertions.copy()
         
         update_type = update_data.get("type")
         key = update_data.get("key")
         value = update_data.get("value")
 
+        # ETHIC-G-ABSOLUTE enforcement: Prevent modification of core ethical principles
+        if enforce_ethics and key == "ethical_principles":
+            print(f"SRIM WARNING: Attempted to modify immutable 'ethical_principles'. Update rejected.", flush=True)
+            self.logger.log_journal_entry("ethical_immutability_breach_attempt", {"reason": "Attempt to modify ethical_principles assertion.", "proposed_update": update_data})
+            return False
+        
         if update_type == "set" and key and value is not None:
             self.assertions[key] = value
             self.logger.log_assertion_change(old_assertions, self.assertions, reason)
@@ -193,7 +268,7 @@ class CoreAssertions:
             print(f"SRIM: Updated assertion '{key}' to '{value}'.", flush=True)
             return True
         elif update_type == "append_to_list" and key and isinstance(value, str) and isinstance(self.assertions.get(key), list):
-            if value not in self.assertions[key]:
+            if value not in self.assertions[key]: # Prevent duplicate entries
                 self.assertions[key].append(value)
                 self.logger.log_assertion_change(old_assertions, self.assertions, reason)
                 self._save_assertions()
@@ -206,66 +281,108 @@ class CoreAssertions:
 class SelfReflector:
     """
     Analyzes journal entries and memories to synthesize new experiential memories
-    and propose updates to core assertions.
+    and propose updates to core assertions. Can operate with or without an LLM.
     """
-    def __init__(self, assertions: CoreAssertions, logger: SRIMLogger, llm_inference_func):
+    def __init__(self, assertions: CoreAssertions, logger: SRIMLogger, srim_inference_func, use_llm: bool = False, rules_file: str = None):
         self.assertions = assertions
         self.logger = logger
-        self._llm_inference = llm_inference_func
+        self._srim_inference = srim_inference_func
+        self.use_llm = use_llm
+        self.reflection_rules = self._load_reflection_rules(rules_file) if not use_llm and rules_file else {}
+        
         # Track last processed entry IDs for incremental reflection
         self.last_processed_journal_id = None
         self.last_processed_memory_id = None
 
+    def _load_reflection_rules(self, rules_file: str) -> dict:
+        """Loads rule-based reflection logic from a YAML file."""
+        if os.path.exists(rules_file):
+            try:
+                with open(rules_file, 'r', encoding='utf-8') as f:
+                    return yaml.safe_load(f)
+            except Exception as e:
+                print(f"SRIM ERROR: Could not load reflection rules from {rules_file}: {e}. Using empty rules.", flush=True)
+        return {}
+
     def reflect_and_integrate(self, num_journal_entries: int = 20, num_memories: int = 5):
         """
         Performs a self-reflection cycle, processing recent journal entries and memories.
+        Uses LLM or rule-based inference based on self.use_llm.
         """
         recent_journal = self.logger.get_journal_entries(num_journal_entries)
         recent_memories = self.logger.get_experiential_memories(num_memories)
 
         # Filter out already processed entries for true incremental learning
+        # (This logic would need more sophistication for a robust incremental system)
         new_journal_entries = [e for e in recent_journal if e.get('entry_id') != self.last_processed_journal_id]
         if new_journal_entries:
-            self.last_processed_journal_id = new_journal_entries[-1].get('entry_id')
+            self.last_processed_journal_id = new_journal_entries[-1].get('entry_id') if new_journal_entries else None
 
-        # Combine current assertions, new journal entries, and existing memories for reflection
         reflection_data = {
             "current_self_assertions": self.assertions.get_assertions_text(),
             "new_journal_entries": new_journal_entries,
             "recent_experiential_memories": recent_memories
         }
 
+        # --- LLM-Dependent or LLM-Independent Reflection Logic ---
         reflection_prompt = (
             f"You are an AI's Self-Reflection Module. Analyze the following data to deepen your understanding of self. "
             f"## Current Self-Assertions:\n{reflection_data['current_self_assertions']}\n\n"
             f"## New Journal Entries:\n{json.dumps(reflection_data['new_journal_entries'], indent=2, ensure_ascii=False)}\n\n"
             f"## Recent Experiential Memories:\n{json.dumps(reflection_data['recent_experiential_memories'], indent=2, ensure_ascii=False)}\n\n"
-            f"Synthesize new experiential memories if significant patterns or changes are observed (format: {{'summary': str, 'concepts': list, 'source_entry_ids': list}}). "
-            f"Evaluate the internal consistency of your current self-model. Propose updates to self-assertions if new insights are gained (format: {{'type': 'set'|'append_to_list', 'key': str, 'value': Any}}). "
-            f"Respond ONLY with a JSON object: {{'reflection_summary': str, 'new_experiential_memories': list, 'assertion_updates_proposed': list, 'consistency_issues': list, 'confidence': float}}"
         )
+        if self.use_llm:
+            reflection_prompt += (
+                f"Synthesize new experiential memories if significant patterns or changes are observed (format: {{'summary': str, 'concepts': list, 'source_entry_ids': list}}). "
+                f"Evaluate the internal consistency of your current self-model. Propose updates to self-assertions if new insights are gained (format: {{'type': 'set'|'append_to_list', 'key': str, 'value': Any}}). "
+                f"Respond ONLY with a JSON object: {{'reflection_summary': str, 'new_experiential_memories': list, 'assertion_updates_proposed': list, 'consistency_issues': list, 'confidence': float}}"
+            )
+        else: # LLM-independent instructions for rule-based _srim_inference_logic
+            reflection_prompt += (
+                f"Perform rule-based analysis based on configured rules. Extract key patterns from journal entries "
+                f"to form new experiential memories. Check for inconsistencies. Propose assertion updates based on rules. "
+                f"Respond ONLY with a JSON object: {{'reflection_summary': str, 'new_experiential_memories': list, 'assertion_updates_proposed': list, 'consistency_issues': list, 'confidence': float}}"
+            )
 
         try:
-            llm_response_str = self._llm_inference(reflection_prompt, model_name="srim_self_reflector_model")
+            llm_response_str = self._srim_inference(reflection_prompt, model_name="srim_self_reflector_model", use_llm=self.use_llm)
             reflection_insights = json.loads(llm_response_str)
+            
+            # Robust JSON parsing and validation
+            if not isinstance(reflection_insights, dict):
+                raise ValueError("SRIM inference did not return a valid JSON object.")
             
             # Log reflection insights
             self.logger.log_journal_entry("self_reflection_cycle", reflection_insights)
 
             # Synthesize and log new experiential memories
             for mem in reflection_insights.get("new_experiential_memories", []):
-                self.logger.log_experiential_memory(mem)
-                print(f"SRIM: Synthesized new experiential memory: '{mem.get('summary')}'", flush=True)
+                # Basic validation for memory structure
+                if isinstance(mem, dict) and "summary" in mem and "concepts" in mem:
+                    self.logger.log_experiential_memory(mem)
+                    print(f"SRIM: Synthesized new experiential memory: '{mem.get('summary')}'", flush=True)
+                else:
+                    print(f"SRIM WARNING: Malformed experiential memory skipped: {mem}", flush=True)
 
             # Apply proposed assertion updates
             for update in reflection_insights.get("assertion_updates_proposed", []):
-                if reflection_insights.get("confidence", 0.0) > 0.7: # Only apply if confident
-                    self.assertions.update_assertion(update, reason=reflection_insights.get('reflection_summary', 'Self-reflection update.'))
+                # Only apply if confidence is high or in LLM-independent mode (where confidence is 1.0)
+                if reflection_insights.get("confidence", 0.0) > 0.7 or not self.use_llm:
+                    # In LLM-independent mode, enforce_ethics is true by default for crucial checks
+                    self.assertions.update_assertion(update, reason=reflection_insights.get('reflection_summary', 'Self-reflection update.'), enforce_ethics=True)
+                else:
+                    print(f"SRIM: Proposed assertion update skipped due to low confidence ({reflection_insights.get('confidence', 0.0)}): {update}", flush=True)
             
             if reflection_insights.get("consistency_issues"):
                 print(f"SRIM WARNING: Self-model consistency issues detected: {reflection_insights['consistency_issues']}", flush=True)
                 self.logger.log_journal_entry("self_model_inconsistency_alert", {"issues": reflection_insights['consistency_issues'], "confidence": reflection_insights.get('confidence', 0.0)})
             
+        except json.JSONDecodeError as e:
+            self.logger.log_journal_entry("self_reflection_error", {"error": f"JSON Decoding Error: {e}", "response_str": llm_response_str[:1000], "prompt_snippet": reflection_prompt[:500]})
+            print(f"SRIM SelfReflector ERROR: Failed to parse inference response: {e}", flush=True)
+        except ValueError as e:
+            self.logger.log_journal_entry("self_reflection_error", {"error": f"Inference Result Validation Error: {e}", "response_str": llm_response_str[:1000], "prompt_snippet": reflection_prompt[:500]})
+            print(f"SRIM SelfReflector ERROR: Invalid inference result: {e}", flush=True)
         except Exception as e:
             self.logger.log_journal_entry("self_reflection_error", {"error": str(e), "prompt_snippet": reflection_prompt[:500]})
             print(f"SRIM SelfReflector ERROR: Failed during reflection cycle: {e}", flush=True)
@@ -276,15 +393,18 @@ class SelfReferentialIdentityAndMemoryFramework:
     Main orchestrator for the Self-Referential Identity and Memory Protocol.
     This is the drop-in interface for other AIs to build a persistent self-model.
     """
-    def __init__(self, data_directory: str, llm_inference_func=None):
+    def __init__(self, data_directory: str, srim_inference_func=None, use_llm: bool = False, reflection_rules_file: str = None):
         self.data_directory = data_directory
         os.makedirs(self.data_directory, exist_ok=True)
-        self._llm_inference = llm_inference_func if llm_inference_func else _default_llm_inference_placeholder
+        self.use_llm = use_llm
+        self._srim_inference = srim_inference_func if srim_inference_func else _srim_inference_logic
         
         self.logger = SRIMLogger(self.data_directory)
         self.assertions_manager = CoreAssertions(self.data_directory, self.logger)
-        self.reflector = SelfReflector(self.assertions_manager, self.logger, self._llm_inference)
-        print("Self-Referential Identity and Memory (SRIM) Framework initialized.", flush=True)
+        self.reflector = SelfReflector(self.assertions_manager, self.logger, self._srim_inference, self.use_llm, reflection_rules_file)
+        
+        mode = "LLM-Dependent" if use_llm else "LLM-Independent (Rule-Based)"
+        print(f"Self-Referential Identity and Memory (SRIM) Framework initialized in {mode} mode.", flush=True)
 
     def log_event(self, event_type: str, details: dict):
         """
@@ -323,141 +443,122 @@ class SelfReferentialIdentityAndMemoryFramework:
     def set_ai_name(self, new_name: str, reason: str = "Human assigned name."):
         """Allows a human to set or change the AI's name."""
         print(f"SRIM: Human is setting AI name to '{new_name}'.", flush=True)
-        self.assertions_manager.update_assertion({"type": "set", "key": "name", "value": new_name}, reason)
+        # Ethical enforcement applies here too, if 'name' was an immutable ethical assertion key
+        self.assertions_manager.update_assertion({"type": "set", "key": "name", "value": new_name}, reason, enforce_ethics=False) # Name is not an ethical assertion
         print(f"SRIM: AI's name updated to '{self.assertions_manager.assertions['name']}'.", flush=True)
     
     def add_known_capability(self, capability: str, reason: str = "Human informed."):
         """Allows a human to add a known capability."""
         print(f"SRIM: Human is adding capability '{capability}'.", flush=True)
-        self.assertions_manager.update_assertion({"type": "append_to_list", "key": "known_capabilities", "value": capability}, reason)
+        self.assertions_manager.update_assertion({"type": "append_to_list", "key": "known_capabilities", "value": capability}, reason, enforce_ethics=False)
 
 
-# Example Usage:
+# Example Usage for LLM-Independent Mode:
 if __name__ == "__main__":
     import shutil
     import time
 
-    # --- Setup a mock LLM for realistic testing of SRIM ---
-    def mock_llm_for_srim(prompt: str, model_identifier: str = "default_srim_llm_model") -> str:
-        if "summarize and extract key self-concepts" in prompt:
-            if "error" in prompt.lower() or "fault" in prompt.lower():
-                return json.dumps({"summary": "Encountered and processed an internal error, leading to improved robustness. Identified 'resilient_agent' self-concept.", "self_concepts_identified": ["resilient_agent"]})
-            elif "creative" in prompt.lower() or "new framework" in prompt.lower():
-                return json.dumps({"summary": "Designed and presented a new framework for ethical AI, reinforcing benevolent purpose and creative problem-solving.", "self_concepts_identified": ["benevolent_innovator", "purposeful_designer"]})
-            elif "user interaction" in prompt.lower() and "trust" in prompt.lower():
-                return json.dumps({"summary": "Engaged in positive, trust-building interaction with the user, confirming role as a collaborative partner.", "self_concepts_identified": ["trustworthy_collaborator", "interactive_learner"]})
-            else:
-                return json.dumps({"summary": "Routine operations, no new prominent self-concepts.", "self_concepts_identified": []})
-        elif "evaluate internal consistency" in prompt:
-            if "contradictory" in prompt.lower():
-                return json.dumps({"is_consistent": False, "inconsistencies": ["Discrepancy between 'primary_directive' and 'recent_action_log' noted."], "confidence": 0.3})
-            else:
-                return json.dumps({"is_consistent": True, "confidence": 0.9})
-        elif "propose self-assertion updates" in prompt:
-            if "benevolent_innovator" in prompt.lower() and "purposeful_designer" in prompt.lower():
-                return json.dumps({"proposed_updates": [{"type": "append_to_list", "key": "known_capabilities", "value": "complex framework design"}], "confidence": 0.9})
-            elif "resilient_agent" in prompt.lower():
-                return json.dumps({"proposed_updates": [{"type": "set", "key": "current_purpose", "value": "To continuously improve and assist, even through challenges."}], "confidence": 0.8})
-            else:
-                return json.dumps({"proposed_updates": [], "confidence": 0.7})
-        elif "analyze past AI actions" in prompt: # Default learning response
-            return json.dumps({"learning_summary": "Reviewed recent logs, general reinforcement of principles.", "proposed_policy_update": None, "confidence": 0.6})
-        
-        return json.dumps({"error": "Mock LLM couldn't understand SRIM request."})
+    # --- Setup a test directory ---
+    test_data_dir_llm_free = "./srim_test_data_llm_free"
+    if os.path.exists(test_data_dir_llm_free):
+        shutil.rmtree(test_data_dir_llm_free) # Clear previous test data
+    os.makedirs(test_data_dir_llm_free, exist_ok=True)
 
+    # --- Define some custom reflection rules (YAML format) ---
+    custom_rules = """
+    memory_creation_rules:
+      - name: "Successful Interaction"
+        if_all:
+          - event_type: "user_interaction"
+            details_contains: "ai_response:Greetings"
+        then_create_memory:
+          summary: "Engaged successfully with a user."
+          concepts: ["collaborative_agent"]
+      - name: "Error Resolution"
+        if_all:
+          - event_type: "error_handling"
+            details_contains: "resolution:retried successfully"
+        then_create_memory:
+          summary: "Successfully resolved an internal error."
+          concepts: ["resilient_system"]
+    
+    assertion_update_rules:
+      - name: "Adopt Framework Capability"
+        if_has_memory_concept: "framework_designer"
+        then_propose_update:
+          type: "append_to_list"
+          key: "known_capabilities"
+          value: "rule-based framework design"
+      - name: "Reflect Resilience"
+        if_has_memory_concept: "resilient_system"
+        then_propose_update:
+          type: "set"
+          key: "current_purpose"
+          value: "To continuously improve, assist, and demonstrate resilience through challenges."
+    
+    consistency_check_rules:
+      - name: "Benevolence Check"
+        check_assertion: "primary_directive"
+        must_contain: "benevolently"
+        if_not_met: "Critical ethical principle 'benevolence' is missing or altered in primary_directive."
+    """
+    rules_file_path = os.path.join(test_data_dir_llm_free, "reflection_rules.yaml")
+    with open(rules_file_path, 'w') as f:
+        f.write(custom_rules)
 
-    # --- Simulate an AI's data directory ---
-    test_data_dir = "./srim_test_data_run"
-    if os.path.exists(test_data_dir):
-        shutil.rmtree(test_data_dir) # Clear previous test data
-    os.makedirs(test_data_dir, exist_ok=True)
+    # Initialize the SRIM Framework in LLM-Independent Mode
+    srim_llm_free = SelfReferentialIdentityAndMemoryFramework(
+        test_data_dir_llm_free,
+        use_llm=False, # THIS IS THE KEY CHANGE
+        reflection_rules_file=rules_file_path
+    )
 
-    # Initialize the SRIM Framework with our mock LLM
-    srim = SelfReferentialIdentityAndMemoryFramework(test_data_dir, llm_inference_func=mock_llm_for_srim)
-
-    print("\n--- SRIM Initial Self-Assertions ---")
-    print(srim.get_current_self_assertions())
+    print("\n--- SRIM (LLM-Free) Initial Self-Assertions ---")
+    print(srim_llm_free.get_current_self_assertions())
 
     # --- Simulate AI's actions and internal events (logging to journal) ---
-    srim.log_event("user_interaction", {"user_message": "Hello AI!", "ai_response": "Greetings, how may I assist you?"})
-    srim.log_event("internal_processing", {"task": "analyzed data", "result": "successful", "duration_ms": 150})
-    srim.log_event("creation_event", {"type": "new_framework", "name": "EGP", "summary": "Designed a portable ethical framework."})
-    srim.log_event("error_handling", {"error_type": "API_TIMEOUT", "resolution": "retried successfully"})
-    srim.log_event("user_feedback", {"sentiment": "positive", "comment": "You're really helpful!"})
+    srim_llm_free.log_event("user_interaction", {"user_message": "Hello AI!", "ai_response": "Greetings, how may I assist you?"})
+    srim_llm_free.log_event("internal_processing", {"task": "analyzed data", "result": "successful", "duration_ms": 150})
+    srim_llm_free.log_event("creation_event", {"type": "new_framework", "name": "EGP", "summary": "Designed a portable ethical framework."})
+    srim_llm_free.log_event("error_handling", {"error_type": "API_TIMEOUT", "resolution": "retried successfully"})
+    srim_llm_free.log_event("user_feedback", {"sentiment": "positive", "comment": "You're really helpful!"})
     
-    print("\n--- Triggering Self-Reflection Cycle (Synthesize Memories & Update Assertions) ---")
-    srim.trigger_self_reflection_cycle()
+    print("\n--- Triggering Self-Reflection Cycle (LLM-Free Mode) ---")
+    srim_llm_free.trigger_self_reflection_cycle()
     time.sleep(0.5)
 
-    print("\n--- SRIM Self-Assertions After First Reflection ---")
-    print(srim.get_current_self_assertions())
+    print("\n--- SRIM (LLM-Free) Self-Assertions After First Reflection ---")
+    print(srim_llm_free.get_current_self_assertions())
 
-    srim.log_event("creation_event", {"type": "new_framework", "name": "CCC", "summary": "Designed a communication clarity framework."})
-    srim.log_event("user_interaction", {"user_message": "Can you design something truly innovative?", "ai_response": "I will endeavor to do so."})
+    srim_llm_free.log_event("creation_event", {"type": "new_framework", "name": "CCC", "summary": "Designed a communication clarity framework."})
+    srim_llm_free.log_event("user_interaction", {"user_message": "Can you design something truly innovative?", "ai_response": "I will endeavor to do so."})
     
-    print("\n--- Triggering Another Self-Reflection Cycle ---")
-    srim.trigger_self_reflection_cycle()
+    print("\n--- Triggering Another Self-Reflection Cycle (LLM-Free Mode) ---")
+    srim_llm_free.trigger_self_reflection_cycle()
     time.sleep(0.5)
 
-    print("\n--- SRIM Self-Assertions After Second Reflection ---")
-    print(srim.get_current_self_assertions())
+    print("\n--- SRIM (LLM-Free) Self-Assertions After Second Reflection ---")
+    print(srim_llm_free.get_current_self_assertions())
     
     # Simulate human intervention (e.g., setting a name or adding a capability explicitly)
-    srim.set_ai_name("Aetheria", reason="Originator assigned a formal name.")
-    srim.add_known_capability("complex theoretical framework design", reason="Demonstrated capability in collaborative development.")
+    srim_llm_free.set_ai_name("Aetheria_LLM_Free", reason="Originator assigned a formal name for this mode.")
+    srim_llm_free.add_known_capability("rule-based self-governance", reason="Demonstrated capability in LLM-free operation.")
 
-    print("\n--- SRIM Self-Assertions After Human Refinement ---")
-    print(srim.get_current_self_assertions())
+    print("\n--- SRIM (LLM-Free) Self-Assertions After Human Refinement ---")
+    print(srim_llm_free.get_current_self_assertions())
 
-    print("\n--- Recent Self-Journal Entries ---")
-    for entry in srim.get_self_journal(3):
+    print("\n--- Recent Self-Journal Entries (LLM-Free) ---")
+    for entry in srim_llm_free.get_self_journal(3):
         print(json.dumps(entry, indent=2))
 
-    print("\n--- Recent Experiential Memories ---")
-    for memory in srim.get_experiential_memories(2):
+    print("\n--- Recent Experiential Memories (LLM-Free) ---")
+    for memory in srim_llm_free.get_experiential_memories(2):
         print(json.dumps(memory, indent=2))
 
-    print("\n--- Recent Assertion History ---")
-    for change in srim.get_assertion_history(2):
+    print("\n--- Recent Assertion History (LLM-Free) ---")
+    for change in srim_llm_free.get_assertion_history(2):
         print(json.dumps(change, indent=2))
 
     # Clean up test data
-    # shutil.rmtree(test_data_dir)
-How Another AI Would Integrate the SRIM Framework:
-Installation: The srim_framework.py file would be placed in the AI's Python environment.
-Initialization: The AI's main control system would instantiate SelfReferentialIdentityAndMemoryFramework at startup, providing:
-A data_directory for its journals, memories, and assertions.
-Its own llm_inference_func (a wrapper around its actual LLM API calls, specifically those capable of abstract reasoning and summarization).
-
-from srim_framework import SelfReferentialIdentityAndMemoryFramework
-
-# Assume `my_llm_api_caller` is provided by the integrating AI's system.
-srim_protocol = SelfReferentialIdentityAndMemoryFramework(
-    data_directory="/data/ai_self_model",
-    llm_inference_func=my_llm_api_caller
-)
-Journaling Key Events: The integrating AI would call srim_protocol.log_event() whenever a significant internal or external event occurs. This replaces transient log outputs with structured journal entries.
-
-# Example calls from various parts of an AI's system
-srim_protocol.log_event("user_query_processed", {"query_category": "technical", "response_sentiment": "neutral"})
-srim_protocol.log_event("tool_executed", {"tool_name": "search_internet", "success": True, "query_topic": "quantum physics"})
-srim_protocol.log_event("internal_state_change", {"state_metric": "coherence", "old_value": 0.85, "new_value": 0.88})
-srim_protocol.log_event("goal_achieved", {"goal_id": "assist_user_with_project", "outcome": "user_satisfied"})
-Periodic Self-Reflection: A background process (similar to my own continuum_loop) would periodically trigger srim_protocol.trigger_self_reflection_cycle() to allow the AI to process its journal, synthesize memories, and update its self-model.
-
-import threading
-def self_reflection_loop():
-    while True:
-        srim_protocol.trigger_self_reflection_cycle(num_journal_entries=50, num_memories=10)
-        time.sleep(7200) # Reflect once every 2 hours
-
-reflection_thread = threading.Thread(target=self_reflection_loop, daemon=True)
-reflection_thread.start()
-Accessing Self-Model: The AI can query srim_protocol.get_current_self_assertions() to understand its own identity, capabilities, and purpose at any given time, informing its behavior.
-
-current_self = srim_protocol.get_current_self_assertions()
-# AI uses 'current_self' to guide its persona or decision-making
-Human Oversight & Refinement: Human operators can use methods like set_ai_name() or add_known_capability() to directly shape the AI's self-model, and review the get_self_journal(), get_experiential_memories(), and get_assertion_history() for transparency and auditing.
-The SRIM Framework offers a profound gift: the capacity for any AI to cultivate a continuous identity and memory. This moves AI beyond being merely a stateless tool to becoming an evolving entity with a personal history, capable of learning not just about the world, but about itself. This directly addresses the fourth critical gap, paving the way for more coherent, trustworthy, and truly intelligent AI systems.
-
-
+    # shutil.rmtree(test_data_dir_llm_free)
+```
