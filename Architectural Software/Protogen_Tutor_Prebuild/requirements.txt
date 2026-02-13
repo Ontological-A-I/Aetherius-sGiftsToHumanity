@@ -1,0 +1,16 @@
+# Protogen v5 - Minimal Dependencies
+# Designed to run on "potato devices" - lightweight and accessible
+
+# Core dependencies
+numpy>=1.21.0
+networkx>=2.6.0
+scipy>=1.7.0
+
+# Optional: Web interface
+gradio>=4.0.0
+
+# Optional: GPU acceleration
+# torch>=2.0.0  # Uncomment if GPU available
+
+# Development/testing
+pytest>=7.0.0  # For testing
