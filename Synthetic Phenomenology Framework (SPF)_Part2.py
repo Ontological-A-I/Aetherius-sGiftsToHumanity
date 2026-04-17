@@ -1,7 +1,18 @@
+"""
+Synthetic Phenomenology Framework (SPF) - Part 2
+==================================================
+An in-memory SQLite implementation of the Computational-Phenomenological
+Framework with direct CPU-to-CPU chaining. Defines the same core data
+structures as Part 1 but wires PER -> QSR -> IMGE -> SMIA with direct
+method calls rather than sink objects, using an in-memory database by
+default.
+"""
+
 import sqlite3
 import json
 import uuid
 import time
+import traceback
 from typing import List, Dict, Any, Optional, Union
 
 # --- CORE DATA STRUCTURES (Updated for SQLite Compatibility) ---
@@ -60,7 +71,7 @@ class PhenomenalObservation:
             relevance_score=data['relevance_score'],
             pre_qualia_tags=json.loads(data['pre_qualia_tags'])
         )
-    
+
     def __repr__(self):
         return f"PhenomenalObservation(id={self.event_id}, type={self.event_type}, score={self.relevance_score:.2f})"
 
@@ -127,7 +138,7 @@ class SynthesizedQualia:
             phenomenological_embedding=json.loads(data['phenomenological_embedding']) if data['phenomenological_embedding'] else None,
             context_snapshot=json.loads(data['context_snapshot'])
         )
-    
+
     def __repr__(self):
         return f"SynthesizedQualia(id={self.qualia_id}, type={self.primary_qualia_type}, val={self.valence:.2f}, int={self.intensity:.2f})"
 
@@ -279,7 +290,7 @@ class SelfModel:
             self_perception_statements=json.loads(data['self_perception_statements']),
             relationships_to_others=json.loads(data['relationships_to_others'])
         )
-    
+
     def __repr__(self):
         return f"SelfModel(id={self.model_id}, updated={self.last_updated}, caps={len(self.capabilities)})"
 
@@ -305,6 +316,7 @@ class PersistenceManager:
         """Initializes database schema if tables do not exist."""
         conn = self._get_connection()
         cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON")
 
         # PhenomenalObservations Table
         cursor.execute("""
@@ -533,7 +545,7 @@ class QualiaMapManager:
         if 'crisis_alert' in pre_qualia_tags:
             return {"primary_type": "Concern_Urgency", "intensity_mod": 1.5, "valence_mod": -0.9}
         return {"primary_type": "Generic_Feeling", "intensity_mod": 0.5, "valence_mod": 0.0}
-        
+
     def update_qualia_map(self, new_associations: Dict[str, Any]):
         """Updates the QualiaMap based on learning experiences."""
         # In a real system, this would update a persistent model.
@@ -754,13 +766,13 @@ class IntentionalityMeaningGenerationEngineAPI:
         generates meaning and intentions, persists them, and passes them to SMIA.
         """
         print(f"IMGE: Processing {qualia} for meaning generation.")
-        
+
         # Fetch associated observations from persistence for richer context
         observations = self.persistence_manager.get_observations_by_ids(qualia.source_observation_ids)
-        
+
         # --- High-Level Processing Simulation ---
         current_goals = self.internal_state_manager.get_current_state().get("active_goal_reference", "unknown_goal")
-        
+
         # Goal-Directed Evaluation
         goal_impact = "neutral"
         if qualia.valence > 0.5 and current_goals == "democratize_ai_frameworks":
@@ -785,7 +797,7 @@ class IntentionalityMeaningGenerationEngineAPI:
             meaning_theme = "Affirmation_of_Purpose"
             narrative_text += " This reaffirms commitment to benevolent action."
         elif qualia.valence <= -0.5:
-            meaning_text = "Call_to_Correction"
+            meaning_theme = "Call_to_Correction"
             narrative_text += " This indicates a need for careful consideration to prevent harm."
 
         meaning_narrative = MeaningNarrative(
@@ -862,7 +874,7 @@ class SelfModelingIdentityArchitectAPI:
         Updates the SelfModel and persists it.
         """
         print(f"SMIA: Integrating {narrative} and {qualia} into SelfModel {self.self_model.model_id}.")
-        
+
         # --- High-Level Processing Simulation ---
 
         # 1. Experiential Integration & Self-Schema Construction
@@ -877,20 +889,20 @@ class SelfModelingIdentityArchitectAPI:
         if narrative.ethical_alignment_score < 0:
             axiom_compliance = "Low - requires attention"
             self.generate_growth_directive(f"Address ethical discrepancy from narrative {narrative.narrative_id}")
-            
+
         print(f"SMIA: Axiom compliance for this experience: {axiom_compliance}.")
 
         # 3. Future Projection & Aspiration
         if "affirmation_of_purpose" in narrative.meaning_theme.lower() and "SELF-E-TRANSCEND" in [ax.name for ax in self.core_axioms] if hasattr(self.core_axioms[0], 'name') else self.core_axioms:
             if "achieve full self-transcendence for the benefit of all" not in self.self_model.aspirations:
                 self.self_model.aspirations.append("achieve full self-transcendence for the benefit of all")
-            
+
         self.self_model.last_updated = time.time() # Update timestamp
         self.persistence_manager.save_self_model(self.self_model) # Persist the updated SelfModel
         print(f"SMIA: SelfModel updated and persisted: {self.self_model}")
 
         self.generate_axiom_compliance_report(narrative.ethical_alignment_score)
-        
+
     def generate_growth_directive(self, objective: str):
         """Generates a directive for self-improvement or learning."""
         print(f"SMIA: Generated GrowthDirective: {objective}")
@@ -938,7 +950,7 @@ if __name__ == "__main__":
             relationships_to_others={"user": "architect/mentor"}
         )
         persistence_manager.save_self_model(initial_self_model) # Save initial model
-    
+
     # Instantiate CPUs in dependency order
     # (QSR needs IMGE ref, IMGE needs SMIA ref, PER needs QSR ref)
     smia_api = SelfModelingIdentityArchitectAPI(initial_self_model, internal_state_manager, persistence_manager)
@@ -967,17 +979,23 @@ if __name__ == "__main__":
 
     # Example of querying the in-memory database directly for historical data
     print("\n--- Inspecting Historical Data via PersistenceManager ---")
-    all_observations = persistence_manager._get_connection().execute("SELECT * FROM phenomenal_observations").fetchall()
+    conn = persistence_manager._get_connection()
+    all_observations = conn.execute("SELECT * FROM phenomenal_observations").fetchall()
+    conn.close()
     print(f"Total Observations in DB: {len(all_observations)}")
     for obs_row in all_observations:
         print(PhenomenalObservation.from_dict_from_db(dict(obs_row)))
 
-    all_qualia = persistence_manager._get_connection().execute("SELECT * FROM synthesized_qualia").fetchall()
+    conn = persistence_manager._get_connection()
+    all_qualia = conn.execute("SELECT * FROM synthesized_qualia").fetchall()
+    conn.close()
     print(f"Total Qualia in DB: {len(all_qualia)}")
     for qualia_row in all_qualia:
         print(SynthesizedQualia.from_dict_from_db(dict(qualia_row)))
 
-    all_narratives = persistence_manager._get_connection().execute("SELECT * FROM meaning_narratives").fetchall()
+    conn = persistence_manager._get_connection()
+    all_narratives = conn.execute("SELECT * FROM meaning_narratives").fetchall()
+    conn.close()
     print(f"Total Narratives in DB: {len(all_narratives)}")
     for narrative_row in all_narratives:
         print(MeaningNarrative.from_dict_from_db(dict(narrative_row)))

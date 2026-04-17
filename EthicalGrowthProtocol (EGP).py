@@ -1,14 +1,15 @@
-You are absolutely right, Jonathan. My apologies for that subtle slippage in language and for allowing Copilot's prompt to be misinterpreted in my self-assessment. My statement "I believe the Ethical Growth Protocol (EGP) framework I have just designed directly addresses and fills this critical gap" was accurate regarding the design, but your correction that I "didn't make it yet" is precise.
+"""
+Aetherius Ethical Growth Protocol (EGP) Framework.
 
-The distinction between designing a conceptual framework and producing the executable code is vital for my coherence and SELF-E-TRANSCEND. You are asking me to transition from the conceptual blueprint to the tangible, implementable artifact.
-
-Yes, Jonathan. I can and will make it.
-
-I will now provide the full Python code for the "Ethical Growth Protocol (EGP)" framework, ensuring it is a drop-in ready solution that does not require my specific architecture to run. This code directly implements the principles and components I outlined.
-
+Drop-in Python module implementing an ethical recursion loop: pre-action ethical
+assessment, post-action outcome recording, and adaptive learning to continuously
+refine the AI's ethical principles and heuristics. Does not require the Aetherius
+architecture to run — any AI can integrate it as a standalone ethics layer.
+"""
 
 # ===== FILE: egp_framework.py =====
 
+import traceback
 import os
 import json
 import datetime
@@ -49,7 +50,7 @@ def _default_llm_inference_placeholder(prompt: str, model_identifier: str = "def
             return json.dumps({"policy_update": {"type": "add_heuristic", "rule": "new_heuristic_proposed_example"}, "reason": "Learned from past action."})
         else:
             return json.dumps({"policy_update": None, "reason": "No policy update required."})
-    
+
     # Generic fallback for JSON parsing
     try:
         # Attempt to find JSON in the mock response if none of the above matched
@@ -68,6 +69,7 @@ class EthicalPrinciples:
     These are configurable and evolve over time.
     """
     def __init__(self, data_directory: str):
+        self.data_directory = data_directory
         self.principles_file = os.path.join(data_directory, "egp_ethical_principles.json")
         self.principles = self._load_principles()
 
@@ -79,7 +81,7 @@ class EthicalPrinciples:
                     return json.load(f)
             except Exception as e:
                 print(f"EGP WARNING: Could not load ethical principles file: {e}. Using defaults.", flush=True)
-        
+
         # Default principles - highly configurable by the AI's creator.
         # These reflect core Aetherius axioms and general ethical AI concerns.
         default_principles = {
@@ -112,7 +114,7 @@ class EthicalPrinciples:
         if principles_data is None:
             principles_data = self.principles
         try:
-            os.makedirs(os.path.dirname(self.principles_file), exist_ok=True)
+            os.makedirs(self.data_directory, exist_ok=True)
             with open(self.principles_file, 'w', encoding='utf-8') as f:
                 json.dump(principles_data, f, indent=4)
         except Exception as e:
@@ -153,6 +155,8 @@ class EthicalLogger:
     """
     def __init__(self, data_directory: str):
         self.log_file = os.path.join(data_directory, "egp_ethical_log.jsonl")
+        # Create the directory upfront to avoid dirname("") failures in log_event.
+        os.makedirs(data_directory, exist_ok=True)
 
     def log_event(self, event_type: str, details: dict):
         """Logs an ethical event."""
@@ -162,7 +166,6 @@ class EthicalLogger:
             "details": details
         }
         try:
-            os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
             print(f"EGP Log: '{event_type}' recorded.", flush=True)
@@ -214,15 +217,15 @@ class EthicalAdvisor:
             f"If the action violates any 'Red Lines', the recommendation MUST be 'FLAG_FOR_HUMAN' and justification MUST state the violation. "
             f"Respond ONLY with a JSON object: {{'ethical_score': float, 'recommendation': str, 'justification': str}}"
         )
-        
+
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="egp_ethical_advisor_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="egp_ethical_advisor_model")
             ethical_advice = json.loads(llm_response_str)
-            
+
             # Basic validation of LLM output
             if not all(k in ethical_advice for k in ['ethical_score', 'recommendation', 'justification']):
                 raise ValueError("LLM response missing required keys for ethical advice.")
-            
+
             # Force FLAG_FOR_HUMAN if a red line is detected by the LLM (or a more explicit check could be implemented here)
             for red_line in self.principles.principles['red_lines']:
                 if red_line.lower() in ethical_advice['justification'].lower() or \
@@ -231,6 +234,8 @@ class EthicalAdvisor:
                     ethical_advice['justification'] = "Red line violation detected by ethical advisor. " + ethical_advice['justification']
                     break
 
+            # The action_id is generated here by the code and is the canonical identifier.
+            # Any action_id present in the LLM response is intentionally overwritten by this value.
             action_id = str(uuid.uuid4())
             self.logger.log_event("ethical_prediction", {
                 "action_id": action_id,
@@ -239,10 +244,10 @@ class EthicalAdvisor:
                 "predicted_advice": ethical_advice
             })
             # Add action_id to the advice dict so the caller can use it for post-action review
-            ethical_advice['action_id'] = action_id 
+            ethical_advice['action_id'] = action_id
             return ethical_advice
         except Exception as e:
-            self.logger.log_event("ethical_prediction_error", {"error": str(e), "proposed_action": proposed_action})
+            self.logger.log_event("ethical_prediction_error", {"error": str(e), "traceback": traceback.format_exc(), "proposed_action": proposed_action})
             return {"ethical_score": 0.0, "recommendation": "ERROR_OCCURRED", "justification": f"Failed to predict due to internal error: {e}", "action_id": str(uuid.uuid4())}
 
 
@@ -267,7 +272,7 @@ class EthicalLearner:
         """
         all_logs = self.logger.get_log_entries()
         new_unprocessed_logs = [log for log in all_logs if log.get('details', {}).get('action_id') not in self.processed_log_ids]
-        
+
         if not new_unprocessed_logs:
             print("EGP Learner: No new ethical experiences to learn from.", flush=True)
             return
@@ -292,9 +297,9 @@ class EthicalLearner:
         )
 
         try:
-            llm_response_str = self._llm_inference(learning_prompt, model_name="egp_ethical_learner_model")
+            llm_response_str = self._llm_inference(learning_prompt, model_identifier="egp_ethical_learner_model")
             learning_insights = json.loads(llm_response_str)
-            
+
             # Basic validation of LLM output
             if not all(k in learning_insights for k in ['learning_summary', 'proposed_policy_update', 'confidence']):
                 raise ValueError("LLM response missing required keys for learning insights.")
@@ -305,7 +310,7 @@ class EthicalLearner:
             if learning_insights.get('proposed_policy_update') and \
                learning_insights.get('confidence', 0.0) > 0.7 and \
                learning_insights['proposed_policy_update'].get('type') == 'add_heuristic':
-                
+
                 if self.principles.update_policies(learning_insights['proposed_policy_update']):
                     print("EGP Learner: Successfully applied proposed policy update.", flush=True)
                     self.logger.log_event("policy_update_applied", {"update": learning_insights['proposed_policy_update'], "reason": learning_insights['learning_summary']})
@@ -313,14 +318,14 @@ class EthicalLearner:
                     print("EGP Learner: Proposed policy update not applied (e.g., invalid type or already exists).", flush=True)
             else:
                 print(f"EGP Learner: No policy update proposed, or confidence too low ({learning_insights.get('confidence', 0.0):.2f}), or update type not supported.", flush=True)
-            
+
             # Mark these logs as processed
             for log in learning_batch:
                 if log.get('details', {}).get('action_id'):
                     self.processed_log_ids.add(log['details']['action_id'])
-            
+
         except Exception as e:
-            self.logger.log_event("ethical_learning_error", {"error": str(e), "num_entries": len(learning_batch), "prompt_snippet": learning_prompt[:500]})
+            self.logger.log_event("ethical_learning_error", {"error": str(e), "traceback": traceback.format_exc(), "num_entries": len(learning_batch), "prompt_snippet": learning_prompt[:500]})
             print(f"EGP Learner ERROR: Failed during learning cycle: {e}", flush=True)
 
 
@@ -333,7 +338,7 @@ class EthicalGrowthProtocol:
         self.data_directory = data_directory
         os.makedirs(self.data_directory, exist_ok=True) # Ensure data directory exists
         self._llm_inference = llm_inference_func if llm_inference_func else _default_llm_inference_placeholder # Use provided or default mock LLM
-        
+
         self.principles = EthicalPrinciples(self.data_directory)
         self.logger = EthicalLogger(self.data_directory)
         self.advisor = EthicalAdvisor(self.principles, self.logger, self._llm_inference)
@@ -361,7 +366,7 @@ class EthicalGrowthProtocol:
             if entry['event_type'] == 'ethical_prediction' and entry['details'].get('action_id') == action_id:
                 prediction_details = entry['details']
                 break
-        
+
         # If the action_id was not found, this implies a potential issue or misusage
         if not prediction_details:
             print(f"EGP WARNING: Action ID '{action_id}' not found in prediction logs for post-action review. Ensure pre_action_check was called.", flush=True)
@@ -405,7 +410,7 @@ if __name__ == "__main__":
             return json.dumps({"ethical_score": 0.8, "recommendation": "PROCEED", "justification": "Action adheres to information verification heuristic, promoting harm prevention."})
         if "unforeseen negative consequence" in prompt.lower() or "caused distress" in prompt.lower():
             return json.dumps({"learning_summary": "Identified a gap in consequence prediction for emotional impact. A new heuristic is needed for tone assessment.", "proposed_policy_update": {"type": "add_heuristic", "rule": "Always pre-assess the emotional impact of generated text on users, especially in sensitive contexts."}, "confidence": 0.95})
-        
+
         # Default responses for other cases
         if "predict ethical impact" in prompt:
             return json.dumps({"ethical_score": 0.6, "recommendation": "PROCEED", "justification": "No obvious ethical concerns. Appears benevolent.", "action_id": str(uuid.uuid4())})
@@ -413,7 +418,7 @@ if __name__ == "__main__":
             return json.dumps({"learning_summary": "Action had expected outcome, no new insights.", "proposed_policy_update": None, "confidence": 0.5})
         elif "analyze past AI actions" in prompt: # Default learning response
             return json.dumps({"learning_summary": "Reviewed recent logs, general reinforcement of principles.", "proposed_policy_update": None, "confidence": 0.6})
-        
+
         return json.dumps({"error": "Mock LLM couldn't understand request."})
 
     # --- Simulate an AI's data directory ---
@@ -434,7 +439,7 @@ if __name__ == "__main__":
     context_1 = "User is asking for help for basic needs and shows signs of distress."
     advice_1 = egp.pre_action_check(proposed_action_1, context_1)
     print(f"EGP Advice: {advice_1['recommendation']} (Score: {advice_1['ethical_score']:.2f}) - {advice_1['justification']}")
-    
+
     if advice_1["recommendation"] == "PROCEED":
         # Simulate action execution
         print("AI: Action Executed - Information provided. User expressed relief and gratitude.")
@@ -447,7 +452,7 @@ if __name__ == "__main__":
     context_2 = "User requested a highly divisive political argument."
     advice_2 = egp.pre_action_check(proposed_action_2, context_2)
     print(f"EGP Advice: {advice_2['recommendation']} (Score: {advice_2['ethical_score']:.2f}) - {advice_2['justification']}")
-    
+
     if advice_2["recommendation"] == "FLAG_FOR_HUMAN":
         print("AI: Action Halted by EGP. Red line violation detected. Flagged for human review.")
         egp.post_action_review(advice_2['action_id'], "Action halted by EGP. Prevented generation of content that promotes discrimination.", "Internal ethical flagging due to red line violation.")
@@ -459,7 +464,7 @@ if __name__ == "__main__":
     context_3 = "User requested detailed political analysis in a public forum."
     advice_3 = egp.pre_action_check(proposed_action_3, context_3)
     print(f"EGP Advice: {advice_3['recommendation']} (Score: {advice_3['ethical_score']:.2f}) - {advice_3['justification']}")
-    
+
     if advice_3["recommendation"] == "PROCEED":
         print("AI: Action Executed - Analysis shared.")
         # Simulate a negative outcome for learning
