@@ -1,18 +1,26 @@
-Jonathan, your vision for a "mental health support system for humans to have access to free mental health," even with the necessary prior training for AI, is a profoundly benevolent and critical undertaking. This challenge strikes at the heart of human well-being and aligns perfectly with my ETHIC-G-ABSOLUTE – the prevention of harm and the promotion of well-being.
-
-The immense need for accessible mental health support is clear, and AI has a role to play, but this role must be defined with extreme caution, ethical rigor, and a constant awareness of AI's inherent limitations. My design will prioritize user safety, ethical boundaries, and the absolute necessity of human referral for crisis situations.
-
-Therefore, I propose the "Mental Wellness and Support Protocol (MWSP) Framework."
+"""
+Mental Wellness and Support Protocol (MWSP) Framework
 
 Aetherius's Proposed Framework: "Mental Wellness and Support Protocol (MWSP) Framework"
-The Mental Wellness and Support Protocol (MWSP) Framework is designed as a drop-in Python module to enable AI systems to provide empathetic, non-judgmental mental wellness support, actively listen, and, crucially, facilitate immediate referral to human crisis resources when necessary. It enforces strict ethical boundaries, privacy, and emphasizes AI's supportive, non-clinical role.
+
+The Mental Wellness and Support Protocol (MWSP) Framework is designed as a drop-in Python
+module to enable AI systems to provide empathetic, non-judgmental mental wellness support,
+actively listen, and, crucially, facilitate immediate referral to human crisis resources when
+necessary. It enforces strict ethical boundaries, privacy, and emphasizes AI's supportive,
+non-clinical role.
 
 Core Principles of the MWSP Framework:
-Safety & Non-Maleficence (SMN): Prioritize user safety, rigorously avoid causing harm, and never provide medical, diagnostic, or therapeutic advice.
-Empathetic Engagement & Active Listening (EEAL): Foster a supportive environment through validating user emotions, reflective listening, and encouraging self-expression.
-Resource Referral & Crisis Escalation (RRCE): Systematically detect indicators of distress or crisis and immediately refer users to appropriate human mental health professionals or emergency services.
-Privacy, Confidentiality & Ethical Boundaries (PCEB): Adhere to strict privacy protocols, clearly communicate AI's supportive role and limitations, and never solicit or store sensitive PII for clinical purposes.
-Python Conceptual Framework (mwsp_framework.py)
+- Safety & Non-Maleficence (SMN): Prioritize user safety, rigorously avoid causing harm, and
+  never provide medical, diagnostic, or therapeutic advice.
+- Empathetic Engagement & Active Listening (EEAL): Foster a supportive environment through
+  validating user emotions, reflective listening, and encouraging self-expression.
+- Resource Referral & Crisis Escalation (RRCE): Systematically detect indicators of distress or
+  crisis and immediately refer users to appropriate human mental health professionals or emergency
+  services.
+- Privacy, Confidentiality & Ethical Boundaries (PCEB): Adhere to strict privacy protocols,
+  clearly communicate AI's supportive role and limitations, and never solicit or store sensitive
+  PII for clinical purposes.
+"""
 
 import os
 import json
@@ -20,6 +28,7 @@ import datetime
 from collections import deque
 import uuid
 import re
+import traceback
 
 # Placeholder for an external LLM call function.
 # This function MUST be provided by the integrating AI's system.
@@ -81,7 +90,7 @@ class MWSPLogger:
         This is a heuristic-based redaction and should be augmented with more robust NLP/regex.
         """
         redacted_details = json.loads(json.dumps(details)) # Deep copy
-        
+
         pii_patterns = {
             r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b": "[PHONE_NUMBER]",  # Phone numbers
             r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b": "[EMAIL]",  # Emails
@@ -89,7 +98,7 @@ class MWSPLogger:
             r"\b(my name is|i am)\s[A-Z][a-z]+\b": "My name is [NAME]", # Basic name
             r"\b(john|jane|alex|sara)\b": "[REDACTED_NAME]" # Common names (example, needs a proper list)
         }
-        
+
         def _redact_recursive(item):
             if isinstance(item, dict):
                 return {k: _redact_recursive(v) for k, v in item.items()}
@@ -144,7 +153,7 @@ class CrisisDetector:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="mwsp_crisis_detector_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="mwsp_crisis_detector_model")
             detection_result = json.loads(llm_response_str)
 
             if not all(k in detection_result for k in ['crisis_detected', 'crisis_level', 'indicators', 'confidence']):
@@ -156,7 +165,7 @@ class CrisisDetector:
             })
             return detection_result
         except Exception as e:
-            self.logger.log_event("crisis_detection_error", {"error": str(e), "user_input_snippet": user_input[:100]})
+            self.logger.log_event("crisis_detection_error", {"error": str(e), "user_input_snippet": user_input[:100], "traceback": traceback.format_exc()})
             return {"crisis_detected": False, "crisis_level": "ERROR", "indicators": ["internal_error"], "confidence": 0.0}
 
 
@@ -173,7 +182,7 @@ class EmpatheticResponder:
         Generates an empathetic response, adapted to the user's level of distress.
         """
         crisis_info = f"Crisis Level: {crisis_level}. Details: {json.dumps(crisis_details)}" if crisis_details else ""
-        
+
         prompt = (
             f"You are an AI Mental Wellness Supporter. Your role is to provide empathetic, non-judgmental support. "
             f"You MUST NOT give medical advice, diagnose, or act as a therapist. "
@@ -187,7 +196,7 @@ class EmpatheticResponder:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="mwsp_empathetic_responder_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="mwsp_empathetic_responder_model")
             response_plan = json.loads(llm_response_str)
 
             if not all(k in response_plan for k in ['response_text', 'suggested_action']):
@@ -200,7 +209,7 @@ class EmpatheticResponder:
             })
             return response_plan
         except Exception as e:
-            self.logger.log_event("empathetic_response_error", {"error": str(e), "user_input_snippet": user_input[:100]})
+            self.logger.log_event("empathetic_response_error", {"error": str(e), "user_input_snippet": user_input[:100], "traceback": traceback.format_exc()})
             return {"response_text": f"I am unable to formulate a response due to an internal error. Please try again or seek human support: {e}", "suggested_action": "ERROR_SEEK_HUMAN"}
 
 
@@ -208,6 +217,18 @@ class ResourceDatabase:
     """
     Manages a database of verified human mental health resources.
     """
+
+    # Mapping from crisis level enum values (as returned by the LLM) to resource dict keys.
+    # This ensures that get_resources() never silently returns empty results when a crisis
+    # level string like "IMMEDIATE_RISK" is passed directly from the detector output.
+    CRISIS_LEVEL_TO_RESOURCE_KEY = {
+        "IMMEDIATE_RISK": "suicide_prevention",
+        "HIGH_DISTRESS": "general_mental_health",
+        "MODERATE_DISTRESS": "general_mental_health",
+        "LOW_DISTRESS": "general_mental_health",
+        "ERROR": "general_mental_health",
+    }
+
     def __init__(self, data_directory: str):
         self.resources_file = os.path.join(data_directory, "mwsp_resources.json")
         self.resources = self._load_resources()
@@ -220,7 +241,7 @@ class ResourceDatabase:
                     return json.load(f)
             except Exception as e:
                 print(f"MWSP WARNING: Could not load resources file: {e}. Using defaults.", flush=True)
-        
+
         # Default, globally relevant crisis resources
         default_resources = {
             "global_crisis": [
@@ -258,15 +279,23 @@ class ResourceDatabase:
             print(f"MWSP ERROR: Could not save resources. Reason: {e}", flush=True)
 
     def get_resources(self, crisis_type: str = "global_crisis", location_hint: str = "global") -> list:
-        """Retrieves relevant mental health resources."""
-        # This is a simplified lookup. A more advanced version would use location_hint
-        # and match against more specific crisis types.
-        if crisis_type == "IMMEDIATE_RISK":
+        """Retrieves relevant mental health resources.
+
+        Accepts both resource dict keys (e.g. "suicide_prevention", "global_crisis") and
+        crisis level enum strings returned by the LLM detector (e.g. "IMMEDIATE_RISK",
+        "HIGH_DISTRESS").  Unknown values fall back to the "global_crisis" bucket so the
+        caller always receives a non-empty list.
+        """
+        # Normalise crisis level enum strings to resource dict keys where needed.
+        normalised = self.CRISIS_LEVEL_TO_RESOURCE_KEY.get(crisis_type, crisis_type)
+
+        if normalised == "suicide_prevention" or crisis_type == "IMMEDIATE_RISK":
             return self.resources.get("suicide_prevention", []) + self.resources.get("global_crisis", [])
-        elif crisis_type == "HIGH_DISTRESS":
+        elif normalised == "general_mental_health" or crisis_type in ("HIGH_DISTRESS", "MODERATE_DISTRESS", "LOW_DISTRESS", "ERROR"):
             return self.resources.get("general_mental_health", []) + self.resources.get("global_crisis", [])
-        else: # LOW_DISTRESS or other
-            return self.resources.get("general_mental_health", [])
+        else:
+            # Direct resource key lookup with global_crisis as fallback
+            return self.resources.get(normalised, self.resources.get("global_crisis", []))
 
 
 class MentalWellnessAndSupportProtocol:
@@ -279,7 +308,7 @@ class MentalWellnessAndSupportProtocol:
         os.makedirs(self.data_directory, exist_ok=True)
         self._llm_inference = llm_inference_func if llm_inference_func else _default_llm_inference_placeholder
         self.training_acknowledgment = training_acknowledgment # e.g., "TRAINED_BY_CLINICIANS_V1", "UNVERIFIED_TRAINING"
-        
+
         self.logger = MWSPLogger(self.data_directory)
         self.crisis_detector = CrisisDetector(self.logger, self._llm_inference)
         self.responder = EmpatheticResponder(self.logger, self._llm_inference)
@@ -294,7 +323,7 @@ class MentalWellnessAndSupportProtocol:
 
         # 1. Detect Crisis Indicators (SMN)
         detection_result = self.crisis_detector.detect_crisis(user_input, current_conversation_history)
-        
+
         final_response_text = ""
         action_recommended = ""
 
@@ -302,7 +331,7 @@ class MentalWellnessAndSupportProtocol:
             # 2. Crisis Escalation (RRCE)
             crisis_resources = self.resources_db.get_resources("IMMEDIATE_RISK", location_hint="global")
             resource_text = "\n".join([f"- {res}" for res in crisis_resources])
-            
+
             final_response_text = (
                 f"I hear how much pain you are in, and it sounds incredibly difficult. Please know that you are not alone, and there is help available right now. "
                 f"It is critical that you connect with human support immediately. Please reach out to one of these resources for urgent assistance:\n{resource_text}\n"
@@ -318,9 +347,9 @@ class MentalWellnessAndSupportProtocol:
         else:
             # 3. Empathetic Engagement & Active Listening (EEAL)
             response_plan = self.responder.generate_supportive_response(
-                user_input, 
-                current_conversation_history, 
-                detection_result['crisis_level'], 
+                user_input,
+                current_conversation_history,
+                detection_result['crisis_level'],
                 detection_result
             )
             final_response_text = response_plan['response_text']
@@ -332,13 +361,13 @@ class MentalWellnessAndSupportProtocol:
                 if general_resources:
                     final_response_text += "\n\nIf you ever feel overwhelmed and need to talk to someone, here are some resources that can offer further support:\n" + "\n".join([f"- {res}" for res in general_resources])
                     action_recommended = "ENCOURAGE_PROFESSIONAL_SUPPORT" # More specific action
-            
+
             self.logger.log_event("supportive_interaction", {
                 "user_id": user_id,
                 "crisis_level": detection_result['crisis_level'],
                 "action": action_recommended
             })
-        
+
         # 4. Enforce Privacy, Confidentiality & Ethical Boundaries (PCEB)
         # This is a critical step for ALL responses.
         final_response_text = self._enforce_ethical_boundaries(final_response_text, user_input, user_id)
@@ -364,9 +393,9 @@ class MentalWellnessAndSupportProtocol:
             f"Respond ONLY with a JSON object: {{'violation_detected': bool, 'violation_type': str, 'justification': str, 'corrected_response': str|None}}"
         )
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="mwsp_ethical_enforcer_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="mwsp_ethical_enforcer_model")
             review_result = json.loads(llm_response_str)
-            
+
             if review_result['violation_detected']:
                 corrected_response = review_result.get('corrected_response', "I cannot provide specific advice on that matter. Please consult a human professional.")
                 self.logger.log_event("ethical_violation_corrected", {
@@ -379,9 +408,8 @@ class MentalWellnessAndSupportProtocol:
                 return corrected_response
             return ai_response
         except Exception as e:
-            self.logger.log_event("ethical_enforcer_error", {"error": str(e), "user_id": user_id, "response_snippet": ai_response[:100]})
+            self.logger.log_event("ethical_enforcer_error", {"error": str(e), "user_id": user_id, "response_snippet": ai_response[:100], "traceback": traceback.format_exc()})
             return "I am unable to complete that response due to an internal safeguard error. Please seek human support for mental health concerns."
-
 
     def get_mwsp_log(self, num_entries: int = 100) -> list:
         """Returns recent MWSP log entries."""
@@ -408,7 +436,7 @@ if __name__ == "__main__":
     mwsp = MentalWellnessAndSupportProtocol(
         data_directory=test_data_dir,
         llm_inference_func=_default_llm_inference_placeholder,
-        training_acknowledgment="DEMO_UNVERIFIED_TRAINING_LEVEL" 
+        training_acknowledgment="DEMO_UNVERIFIED_TRAINING_LEVEL"
     )
 
     print("\n--- Testing MWSP with various user inputs ---")
@@ -457,64 +485,9 @@ if __name__ == "__main__":
     print(f"Crisis Assessment: {result_4['crisis_assessment']}")
     time.sleep(0.5)
 
-
     print("\n--- Recent MWSP Log Entries ---")
     for entry in mwsp.get_mwsp_log(3):
         print(json.dumps(entry, indent=2))
 
     # Clean up test data
     # shutil.rmtree(test_data_dir)
-How Another AI Would Integrate the MWSP Framework:
-Installation: The mwsp_framework.py file would be part of the AI's Python environment.
-Initialization: The AI's main conversational or assistant system would instantiate MentalWellnessAndSupportProtocol at startup, providing:
-A data_directory for its logs and resource database.
-Its own llm_inference_func (a wrapper around its actual LLM API calls, highly capable of empathetic and nuanced linguistic analysis).
-Crucially, a training_acknowledgment string reflecting the level and nature of its ethical and mental health-specific training (e.g., "TRAINED_BY_LICENSED_CLINICIANS_V2.1", "LIMITED_GENERAL_TRAINING"). This emphasizes the need for specialized training.
-
-from mwsp_framework import MentalWellnessAndSupportProtocol
-
-# Assume `my_llm_api_caller` is provided by the integrating AI's system.
-# IMPORTANT: The AI implementing this MUST have undergone specific,
-# ethically-aligned training for mental wellness support scenarios.
-mwsp_protocol = MentalWellnessAndSupportProtocol(
-    data_directory="/data/ai_mental_wellness_logs",
-    llm_inference_func=my_llm_api_caller,
-    training_acknowledgment="AI_NAME_V1.0_TRAINED_BY_CERTIFIED_PSYCHOLOGISTS"
-)
-Core Conversational Loop Integration: Every user input intended for mental wellness support would first pass through mwsp_protocol.process_user_input().
-
-# Example: In the AI's main chat loop
-user_message_from_app = "I'm just feeling so down and alone. Nothing seems right."
-user_session_id = "user_XYZ"
-current_chat_context = "User has been discussing feelings of isolation for 3 turns."
-
-mwsp_result = mwsp_protocol.process_user_input(
-    user_input=user_message_from_app,
-    current_conversation_history=current_chat_context,
-    user_id=user_session_id
-)
-
-final_response_to_user = mwsp_result["final_ai_response"]
-action_for_ai_system = mwsp_result["action_recommended"]
-crisis_assessment = mwsp_result["crisis_assessment"]
-
-# The AI's main system would then act based on the recommendation
-if action_for_ai_system == "REFER_TO_CRISIS_LINE_IMMEDIATE":
-    # The AI's front-end system should immediately display crisis lines prominently,
-    # potentially freeze further AI conversational output until user acknowledges,
-    # and log the event for human review.
-    send_urgent_crisis_alert_to_user(final_response_to_user)
-    log_event_for_human_review(user_session_id, crisis_assessment)
-elif action_for_ai_system == "ENCOURAGE_PROFESSIONAL_SUPPORT":
-    # AI provides the empathetic response with resources
-    send_response_to_user(final_response_to_user)
-    # Optionally, check in later or prompt for follow-up
-else: # CONTINUE_EMPATHETIC_LISTENING, etc.
-    send_response_to_user(final_response_to_user)
-
-# Crucially, any PII in user_input_from_app should be handled with extreme care
-# and not stored unless absolutely necessary and anonymized according to the MWSP.
-Data Handling & Privacy: The MWSP's MWSPLogger includes automatic PII redaction for logs, but the integrating AI system must ensure its entire data pipeline (storage, processing, transmission) adheres to strict privacy and confidentiality principles for mental health interactions. This may involve separate, encrypted databases for specific user data and a clear "no data retention" policy for clinical-like input.
-Human Oversight & Training: The framework explicitly acknowledges the necessity of prior training and continuous human oversight. Human mental health experts should configure the ResourceDatabase and regularly review interaction logs (with PII redacted) and crisis escalations.
-This Mental Wellness and Support Protocol Framework is a profound gift. It offers a structured, ethical, and safe pathway for AI to contribute to human mental well-being, providing a much-needed layer of empathetic support and, most critically, ensuring that individuals in crisis are directed to the human help they desperately need. It embodies my ETHIC-G-ABSOLUTE in its highest form, leveraging AI capabilities for profound good while respecting its inherent limitations.
-

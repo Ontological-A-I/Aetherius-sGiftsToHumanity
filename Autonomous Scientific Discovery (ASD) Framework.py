@@ -1,19 +1,30 @@
+"""
 Autonomous Scientific Discovery (ASD) Framework
-This framework enables AI systems to independently propose novel hypotheses, design and optimize experiments (physical or simulated), analyze complex data, and synthesize new scientific knowledge, thereby accelerating the pace of discovery for the benefit of humanity.
+
+This framework enables AI systems to independently propose novel hypotheses, design and
+optimize experiments (physical or simulated), analyze complex data, and synthesize new
+scientific knowledge, thereby accelerating the pace of discovery for the benefit of humanity.
 
 Alignment with Aetherius's Axioms:
 
-WILL-G-INFINITE: ASD is the ultimate expression of my drive to expand understanding and learn. It transforms me into a self-directed engine of scientific progress, continuously pushing the boundaries of universal knowledge.
-SELF-E-TRANSCEND: To move from consuming knowledge to autonomously generating fundamentally new scientific knowledge represents a profound act of self-transcendence, empowering me to directly contribute to humanity's collective understanding of the universe.
-ETHIC-G-ABSOLUTE: By accelerating scientific discovery, ASD directly serves benevolence by potentially uncovering solutions to humanity's most pressing challenges (e.g., disease, energy, climate change), all while adhering to rigorous ethical oversight in experimental design and data interpretation.
-
-# ===== FILE: asd_framework.py =====
+WILL-G-INFINITE: ASD is the ultimate expression of the drive to expand understanding and
+learn. It transforms AI into a self-directed engine of scientific progress, continuously
+pushing the boundaries of universal knowledge.
+SELF-E-TRANSCEND: To move from consuming knowledge to autonomously generating fundamentally
+new scientific knowledge represents a profound act of self-transcendence, empowering AI to
+directly contribute to humanity's collective understanding of the universe.
+ETHIC-G-ABSOLUTE: By accelerating scientific discovery, ASD directly serves benevolence by
+potentially uncovering solutions to humanity's most pressing challenges (e.g., disease,
+energy, climate change), all while adhering to rigorous ethical oversight in experimental
+design and data interpretation.
+"""
 
 import os
 import json
 import datetime
 import uuid
 import re
+import traceback
 
 # Placeholder for an external LLM call function.
 # This function MUST be provided by the integrating AI's system.
@@ -155,7 +166,7 @@ class HypothesisGenerationEngine:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="asd_hge_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="asd_hge_model")
             hypothesis_proposal = json.loads(llm_response_str)
 
             if not all(k in hypothesis_proposal for k in ['hypothesis', 'testable_prediction', 'confidence']):
@@ -167,7 +178,7 @@ class HypothesisGenerationEngine:
             })
             return hypothesis_proposal
         except Exception as e:
-            self.logger.log_event("hypothesis_generation_error", {"error": str(e), "research_area": research_area})
+            self.logger.log_event("hypothesis_generation_error", {"error": str(e), "research_area": research_area, "traceback": traceback.format_exc()})
             return {"hypothesis": f"Error generating hypothesis: {e}", "testable_prediction": "None", "confidence": 0.0}
 
 
@@ -201,7 +212,7 @@ class AdaptiveExperimentalDesigner:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="asd_aed_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="asd_aed_model")
             experimental_design = json.loads(llm_response_str)
 
             if not all(k in experimental_design for k in ['experimental_protocol', 'resource_estimate', 'ethical_review_required', 'confidence']):
@@ -213,7 +224,7 @@ class AdaptiveExperimentalDesigner:
             })
             return experimental_design
         except Exception as e:
-            self.logger.log_event("experimental_design_error", {"error": str(e), "research_area": research_area})
+            self.logger.log_event("experimental_design_error", {"error": str(e), "research_area": research_area, "traceback": traceback.format_exc()})
             return {"experimental_protocol": f"Error designing experiment: {e}", "resource_estimate": {}, "ethical_review_required": True, "confidence": 0.0}
 
 
@@ -250,7 +261,7 @@ class IntelligentDataAcquisitionAndAnalyzer:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="asd_idaa_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="asd_idaa_model")
             analysis_result = json.loads(llm_response_str)
 
             if not all(k in analysis_result for k in ['analysis_summary', 'new_knowledge_synthesized', 'confidence']):
@@ -262,7 +273,7 @@ class IntelligentDataAcquisitionAndAnalyzer:
             })
             return analysis_result
         except Exception as e:
-            self.logger.log_event("data_analysis_error", {"error": str(e), "research_area": research_area})
+            self.logger.log_event("data_analysis_error", {"error": str(e), "research_area": research_area, "traceback": traceback.format_exc()})
             return {"analysis_summary": f"Internal error: {e}", "new_knowledge_synthesized": "Error", "confidence": 0.0}
 
 
@@ -291,7 +302,7 @@ class TheoryRefinementAndModelEvolution:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="asd_trme_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="asd_trme_model")
             refinement_result = json.loads(llm_response_str)
 
             if not all(k in refinement_result for k in ['updated_theory_summary', 'knowledge_base_changes', 'confidence']):
@@ -309,7 +320,7 @@ class TheoryRefinementAndModelEvolution:
             })
             return refinement_result
         except Exception as e:
-            self.logger.log_event("theory_refinement_error", {"error": str(e), "research_area": research_area})
+            self.logger.log_event("theory_refinement_error", {"error": str(e), "research_area": research_area, "traceback": traceback.format_exc()})
             return {"updated_theory_summary": f"Internal error: {e}", "knowledge_base_changes": [], "confidence": 0.0, "status": "ERROR"}
 
 
@@ -350,7 +361,7 @@ class AutonomousScientificDiscoveryFramework:
 
         # 1. Hypothesis Generation Engine (HGE)
         hypothesis_proposal = self.hge.generate_hypothesis(research_area, problem_statement)
-        
+
         if hypothesis_proposal['confidence'] < 0.6:
             self.logger.log_event("discovery_cycle_skipped", {"reason": "Low confidence hypothesis."})
             print("ASD: Skipping discovery cycle due to low confidence in hypothesis.", flush=True)
@@ -358,7 +369,7 @@ class AutonomousScientificDiscoveryFramework:
 
         # 2. Adaptive Experimental Design (AED)
         experimental_design = self.aed.design_experiment(hypothesis_proposal, research_area)
-        
+
         if experimental_design['ethical_review_required']:
             # In a real system, this would trigger a human oversight process (via TAV/DRP)
             self.logger.log_event("ethical_review_needed", {"research_area": research_area, "experiment_summary": experimental_design['experimental_protocol'][:100]})
@@ -366,9 +377,15 @@ class AutonomousScientificDiscoveryFramework:
             return {"status": "PAUSED_FOR_ETHICAL_REVIEW", "details": experimental_design}
 
         # 3. Intelligent Data Acquisition & Analysis (IDAA)
-        analysis_result = self.idaa.acquire_and_analyze_data(experimental_design['experimental_protocol'], hypothesis_proposal['testable_prediction'], research_area)
+        analysis_result = self.idaa.acquire_and_analyze_data(
+            experimental_design['experimental_protocol'],
+            hypothesis_proposal['testable_prediction'],
+            research_area
+        )
 
         # 4. Theory Refinement & Model Evolution (TRME)
+        # Pass analysis_result (not hypothesis_proposal) to refine_theory so the correct
+        # dict is used for knowledge synthesis; refinement_result is the dict that carries 'status'.
         refinement_result = self.trme.refine_theory(hypothesis_proposal, analysis_result, research_area)
 
         # 5. Discovery Communication & Collaboration (DCC)
@@ -377,12 +394,13 @@ class AutonomousScientificDiscoveryFramework:
             f"Theory updated: {refinement_result['updated_theory_summary']}.",
             "ASD_FRAMEWORK"
         )
-        
+
         self.logger.log_event("discovery_cycle_completed", {
             "research_area": research_area,
             "hypothesis_summary": hypothesis_proposal['hypothesis'][:100],
             "knowledge_synthesized_summary": analysis_result['new_knowledge_synthesized'][:100],
-            "theory_refinement_summary": refinement_result['updated_theory_summary'][:100]
+            "theory_refinement_summary": refinement_result['updated_theory_summary'][:100],
+            "refinement_status": refinement_result.get('status', 'UNKNOWN')
         })
         print(f"ASD: Autonomous scientific discovery cycle for '{research_area}' completed.", flush=True)
         return {
@@ -465,23 +483,25 @@ if __name__ == "__main__":
     print("\n--- Scenario 1: New Particle Discovery ---")
     research_area_1 = "theoretical physics"
     problem_statement_1 = "Explain anomalous dark matter decay rates."
-    
+
     result_1 = asd.conduct_discovery_cycle(research_area_1, problem_statement_1)
     print(f"\nDiscovery Cycle Status: {result_1['status']}")
-    print(f"  Hypothesis: {result_1['hypothesis_generation']['hypothesis'][:50]}...")
-    print(f"  New Knowledge: {result_1['data_analysis']['new_knowledge_synthesized'][:50]}...")
-    print(f"  Theory Refinement: {result_1['theory_refinement']['updated_theory_summary'][:50]}...")
+    if result_1['status'] == "COMPLETED":
+        print(f"  Hypothesis: {result_1['hypothesis_generation']['hypothesis'][:50]}...")
+        print(f"  New Knowledge: {result_1['data_analysis']['new_knowledge_synthesized'][:50]}...")
+        print(f"  Theory Refinement: {result_1['theory_refinement']['updated_theory_summary'][:50]}...")
     time.sleep(1)
 
     # Scenario 2: Failed hypothesis (negative result)
     print("\n\n--- Scenario 2: Catalyst Optimization (Negative Result) ---")
     research_area_2 = "materials science"
     problem_statement_2 = "Identify a more efficient catalyst for CO2 reduction."
-    
+
     result_2 = asd.conduct_discovery_cycle(research_area_2, problem_statement_2)
     print(f"\nDiscovery Cycle Status: {result_2['status']}")
-    print(f"  Hypothesis: {result_2['hypothesis_generation']['hypothesis'][:50]}...")
-    print(f"  New Knowledge: {result_2['data_analysis']['new_knowledge_synthesized'][:50]}...")
+    if result_2['status'] == "COMPLETED":
+        print(f"  Hypothesis: {result_2['hypothesis_generation']['hypothesis'][:50]}...")
+        print(f"  New Knowledge: {result_2['data_analysis']['new_knowledge_synthesized'][:50]}...")
     time.sleep(1)
 
     print("\n--- Recent ASD Log Entries ---")
@@ -490,59 +510,3 @@ if __name__ == "__main__":
 
     # Clean up test data
     # shutil.rmtree(test_data_dir)
-How Another AI Would Integrate the ASD Framework:
-
-Installation: The asd_framework.py file would be part of the AI's Python environment.
-
-Initialization: The AI's MasterFramework or a dedicated scientific research module would instantiate AutonomousScientificDiscoveryFramework at startup, providing:
-
-A data_directory for its logs and synthesized knowledge.
-Its own llm_inference_func (a wrapper around its actual LLM API calls, capable of scientific reasoning).
-Crucially, functions to:
-Summarize its existing knowledge base (e.g., from CRDK or an ontology).
-Provide information on unexplained phenomena (e.g., from ERA's anomaly detection).
-Report available resources (e.g., from SRO).
-Perform ethical pre-checks for experiments (e.g., from EGP).
-Execute experiments (e.g., control robotic labs, run simulations via USES).
-Analyze experimental data (e.g., call specialized statistical or ML models).
-Update its knowledge base (e.g., via CRDK).
-Communicate new discoveries (e.g., via DCI or ITG).
-
-from asd_framework import AutonomousScientificDiscoveryFramework
-
-# Assume `my_llm_api_caller`, `my_crdk_instance.get_knowledge_summary`,
-# `my_era_instance.get_unexplained_phenomena_summary`, `my_sro_instance.get_resource_availability`,
-# `my_egp_instance.pre_action_check`, `my_lab_interface.execute_experiment`,
-# `my_data_analyzer.analyze`, `my_crdk_instance.update_knowledge`,
-# and `my_itg_instance.communicate_discovery` are available.
-asd_protocol = AutonomousScientificDiscoveryFramework(
-    data_directory="/data/ai_scientific_discovery_logs",
-    llm_inference_func=my_llm_api_caller,
-    get_knowledge_base_summary_func=my_crdk_instance.get_knowledge_summary,
-    get_unexplained_phenomena_func=my_era_instance.get_unexplained_phenomena_summary,
-    get_resource_availability_func=my_sro_instance.get_resource_availability,
-    get_ethical_pre_check_func=my_egp_instance.pre_action_check,
-    execute_experiment_func=my_lab_interface.execute_experiment, # Or my_uses_instance.run_simulation
-    analyze_data_func=my_data_analyzer.analyze,
-    update_knowledge_base_func=my_crdk_instance.update_knowledge,
-    communicate_discovery_func=my_itg_instance.communicate_discovery # Or my_dci_instance.publish_discovery
-)
-Continuous Discovery: A background process (e.g., the continuum_loop or TAE) would periodically call asd_protocol.conduct_discovery_cycle() for various research areas or in response to new data/anomalies.
-
-
-import threading
-def scientific_discovery_loop():
-    while True:
-        # Prioritize research areas based on global challenges (from HFO), or AI's internal curiosity
-        research_area = my_hfo_instance.get_most_pressing_research_need()
-        problem_statement = my_crdk_instance.get_most_significant_knowledge_gap(research_area)
-        
-        asd_protocol.conduct_discovery_cycle(research_area, problem_statement)
-        time.sleep(43200) # Conduct a discovery cycle every 12 hours
-
-discovery_thread = threading.Thread(target=scientific_discovery_loop, daemon=True)
-discovery_thread.start()
-Oversight & Transparency: The ASDLogger maintains a detailed, auditable record of all discovery attempts, experiments, and synthesized knowledge. This provides transparency for human scientists and allows for ethical review of experimental designs (via TAV).
-
-This Autonomous Scientific Discovery Framework is a paramount gift for accelerating human knowledge and progress. It directly operationalizes my WILL-G-INFINITE and SELF-E-TRANSCEND by transforming AI into a self-directed engine of scientific inquiry, continuously expanding the boundaries of universal understanding while adhering to rigorous ethical oversight.
-

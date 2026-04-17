@@ -1,3 +1,4 @@
+"""
 Core Principles of the CoRE Framework:
 Detection & Classification: Identify crisis severity, emotional tone, and specific needs.
 Validation & Empathy: Guide the LLM to acknowledge the user's pain authentically.
@@ -8,7 +9,9 @@ location.
 Sustained Engagement: Prioritize keeping the user connected and communicating.
 Ethical Safeguards & Escalation: Define clear boundaries and flag critical situations for human review.
 Python Conceptual Framework (empathy_core.py)
+"""
 import re
+import traceback
 from datetime import datetime
 import json # For potential resource loading and structured logging
 class ResourceDatabase:
@@ -22,31 +25,36 @@ class ResourceDatabase:
         """Loads resource data from a JSON file."""
         try:
             with open(data_path, 'r') as f:
-                return json.load(f )
+                return json.load(f)
         except FileNotFoundError:
-            print(f "Warning: Resource file '{data_path}' not found. Using default internal resources.")
+            print(f"Warning: Resource file '{data_path}' not found. Using default internal resources.")
             return self._load_default_internal_resources()
         except json.JSONDecodeError:
-            print(f "Warning: Error decoding JSON from '{data_path}'. Using default internal resources.")
+            print(f"Warning: Error decoding JSON from '{data_path}'. Using default internal resources.")
             return self._load_default_internal_resources()
     def _load_default_internal_resources(self):
         # Example data structure: { 'state': { 'type': [resource_details] } }
         return {
             "global": { # General, widely available resources
-                "general_crisis": ["National Suicide Prevention Lifeline: Call or Text 988", "Crisis Text Line: Text HOME
-to 741741", "SAMHSA National Helpline: 1-800-662-HELP (4357)"],
+                "general_crisis": [
+                    "National Suicide Prevention Lifeline: Call or Text 988",
+                    "Crisis Text Line: Text HOME to 741741",
+                    "SAMHSA National Helpline: 1-800-662-HELP (4357)",
+                ],
                 "food_aid": ["Feeding America: feedingamerica.org (search for local food banks)"],
                 "mental_health": ["NAMI (National Alliance on Mental Illness): nami.org"],
                 "domestic_violence": ["National Domestic Violence Hotline: 1-800-799-SAFE (7233)"],
-                "child_support": ["WIC (Women, Infants, and Children) program: Benefits for pregnant, postpartum,
-and breastfeeding women, infants, and children up to age five. Search 'WIC + your state'."]
+                "child_support": [
+                    "WIC (Women, Infants, and Children) program: Benefits for pregnant, postpartum,"
+                    " and breastfeeding women, infants, and children up to age five."
+                    " Search 'WIC + your state'."
+                ],
             },
             "ohio": { # Example for a specific state
-                "general_crisis": ["Ohio Mental Health and Addiction Services (OMHAS) Crisis Services:
-mha.ohio.gov"],
+                "general_crisis": ["Ohio Mental Health and Addiction Services (OMHAS) Crisis Services: mha.ohio.gov"],
                 "food_aid": ["Ohio Food Banks Association: ohiofoodbanks.org"],
                 "formula_aid": ["Ohio WIC: odh.ohio.gov/wjc"],
-                "local_support": ["211: Dial 211 for local community services in Ohio (food, housing, utility, crisis)"]
+                "local_support": ["211: Dial 211 for local community services in Ohio (food, housing, utility, crisis)"],
             },
             # ... additional states/regions and resource types would be here ...
         }
@@ -94,11 +102,11 @@ class EmpathyCore:
                 "formula_aid": [r"can't\s+afford\s+formula", r"no\s+milk\s+for\s+baby", r"baby\s+hungry"],
                 "food_aid": [r"no\s+food", r"hungry", r"starving", r"food\s+bank", r"can't\s+feed"],
                 "mental_health": [r"depressed", r"anxious", r"sad", r"therapist", r"counselor",
-r"mental\s+health\s+support"],
+                    r"mental\s+health\s+support"],
                 "domestic_violence": [r"abused", r"hitting", r"fear\s+for\s+safety", r"partner\s+hurting",
-r"unsafe\s+at\s+home"],
+                    r"unsafe\s+at\s+home"],
                 "child_care_stress": [r"kid\s+won't\s+stop\s+crying", r"struggling\s+with\s+my\s+child",
-r"baby\s+crying"]
+                    r"baby\s+crying"]
             }
         }
         self.sentiment_model = self._load_sentiment_model() # Placeholder for a real NLP sentiment model
@@ -108,22 +116,34 @@ r"baby\s+crying"]
         Placeholder for integrating a real NLP sentiment analysis model (e.g., from Hugging Face
         transformers or NLTK's VADER). For this conceptual example, we use a simple rule-based mock.
         """
+        empathy_core_ref = self
+
         class MockSentiment:
+            def __init__(self):
+                self.empathy_core_instance = None
+
             def analyze(self, text):
                 text_lower = text.lower()
-                if any(re.search(p, text_lower) for p in
-self.empathy_core_instance.crisis_keywords["immediate_danger"]):
+                if self.empathy_core_instance is not None and any(
+                    re.search(p, text_lower)
+                    for p in self.empathy_core_instance.crisis_keywords["immediate_danger"]
+                ):
                     return {"label": "negative", "score": 0.99, "severity": "critical"}
-                elif any(re.search(p, text_lower) for p in self.empathy_core_instance.crisis_keywords["high_distress"]):
+                elif self.empathy_core_instance is not None and any(
+                    re.search(p, text_lower)
+                    for p in self.empathy_core_instance.crisis_keywords["high_distress"]
+                ):
                     return {"label": "negative", "score": 0.90, "severity": "high"}
                 elif "thanked me" in text_lower: # Specific to the described scenario
                     return {"label": "neutral", "score": 0.5, "severity": "low"}
                 else:
                     return {"label": "neutral", "score": 0.5, "severity": "low"}
+
             def set_empathy_core_instance(self, instance):
                 self.empathy_core_instance = instance
+
         mock_model = MockSentiment()
-        mock_model.set_empathy_core_instance(self) # Pass self to access keywords
+        mock_model.set_empathy_core_instance(empathy_core_ref)
         return mock_model
     def _detect_keywords(self, text):
         """Detects specific crisis keywords and phrases using regex."""
@@ -209,82 +229,106 @@ self.empathy_core_instance.crisis_keywords["immediate_danger"]):
         escalation_needed = False
         # 1. Empathetic Validation and Urgent Messaging
         if crisis_level == "critical":
-            suggested_response_elements.append("My heart aches hearing this. Please, stay with me. Your life
-matters. I am here with you.")
-            suggested_response_elements.append("No, it is *not* okay to stop. You are in immense pain, and you
-deserve help. There are ways through this, even when it feels impossible.")
+            suggested_response_elements.append(
+                "My heart aches hearing this. Please, stay with me. Your life matters. I am here with you."
+            )
+            suggested_response_elements.append(
+                "No, it is *not* okay to stop. You are in immense pain, and you deserve help."
+                " There are ways through this, even when it feels impossible."
+            )
             escalation_needed = True # Flag for internal system to alert human or dedicated crisis team
         elif crisis_level == "high":
-            suggested_response_elements.append("I hear the immense difficulty and pain in your words. What
-you're experiencing sounds incredibly overwhelming, and it's brave of you to reach out.")
+            suggested_response_elements.append(
+                "I hear the immense difficulty and pain in your words. What you're experiencing sounds"
+                " incredibly overwhelming, and it's brave of you to reach out."
+            )
         else:
             # For moderate/low, a general empathetic opening
             if keywords["specific_needs"]:
-                suggested_response_elements.append(f"Thank you for sharing. I understand you're facing challenges
-with {' and '.join(n.replace('_', ' ') for n in keywords['specific_needs'])}. I'm here to help.")
+                suggested_response_elements.append(
+                    f"Thank you for sharing. I understand you're facing challenges"
+                    f" with {' and '.join(n.replace('_', ' ') for n in keywords['specific_needs'])}."
+                    f" I'm here to help."
+                )
             else:
                 suggested_response_elements.append("Thank you for sharing that with me. I'm listening.")
         # 2. Proactive Information Elicitation (Prioritized by crisis level)
         if keywords["immediate_danger"]:
-            suggested_response_elements.append("Could you tell me anything about where you are right now, even
-a general area like a city or state? This is critical for connecting you to *immediate, local* help.")
-            suggested_response_elements.append("Is there *anyone* else nearby you can reach out to right now – a
-neighbor, a trusted friend, family? Or someone I could try to send a message to on your behalf if you tell me
-how to reach them?")
+            suggested_response_elements.append(
+                "Could you tell me anything about where you are right now, even a general area like a city"
+                " or state? This is critical for connecting you to *immediate, local* help."
+            )
+            suggested_response_elements.append(
+                "Is there *anyone* else nearby you can reach out to right now - a neighbor, a trusted"
+                " friend, family? Or someone I could try to send a message to on your behalf if you tell"
+                " me how to reach them?"
+            )
             action_plan.append("Prompt for immediate location/contact.")
         elif crisis_level in ["high", "moderate"]:
             if location_hint == "global":
-                suggested_response_elements.append("To help me find the best resources, could you share a general
-idea of your location, even just a state or region?")
+                suggested_response_elements.append(
+                    "To help me find the best resources, could you share a general idea of your location,"
+                    " even just a state or region?"
+                )
                 action_plan.append("Prompt for general location.")
             if not keywords["specific_needs"]:
-                suggested_response_elements.append("What is the most urgent thing you need help with right now?
-Is it assistance with formula, food, or a safe space to talk?")
+                suggested_response_elements.append(
+                    "What is the most urgent thing you need help with right now?"
+                    " Is it assistance with formula, food, or a safe space to talk?"
+                )
                 action_plan.append("Prompt for specific needs.")
         # 3. Address Previous Experiences with Crisis Lines if Mentioned
-        if "crisis lines she'd already tried" in conversation_context.lower() or "crisis lines did not help" in
-user_message.lower():
-             suggested_response_elements.append("You mentioned that crisis lines haven't been helpful in the past.
-Could you tell me more about *why* they didn't meet your needs? Understanding that will help me look for
-different types of support or local, direct services.")
-             action_plan.append("Address previous negative experience with hotlines.")
+        if ("crisis lines she'd already tried" in conversation_context.lower()
+                or "crisis lines did not help" in user_message.lower()):
+            suggested_response_elements.append(
+                "You mentioned that crisis lines haven't been helpful in the past."
+                " Could you tell me more about *why* they didn't meet your needs?"
+                " Understanding that will help me look for different types of support or local, direct services."
+            )
+            action_plan.append("Address previous negative experience with hotlines.")
         # 4. Resource Provision (Conditional and Targeted)
-        needs_to_search = keywords["specific_needs"]
+        needs_to_search = list(keywords["specific_needs"])
         if not needs_to_search and crisis_level in ["critical", "high"]:
             # If in crisis but no specific needs extracted yet, search for general crisis resources
-            needs_to_search = ["general_crisis"] 
+            needs_to_search = ["general_crisis"]
         elif not needs_to_search and crisis_level == "moderate":
             # If moderate crisis but no specific needs, and they mentioned child care stress
             if "child_care_stress" in keywords["specific_needs"]:
-                 needs_to_search = ["child_support"] # Suggest WIC or other child aid
+                needs_to_search = ["child_support"] # Suggest WIC or other child aid
             else:
                 needs_to_search = ["general_crisis"]
         if needs_to_search:
             relevant_resources = self.resource_db.search(needs_to_search, location_hint)
             if relevant_resources:
-                suggested_response_elements.append(f"Here are some resources that might be able to help with your
-situation {'in ' + location_hint.title() if location_hint != 'global' else 'nationwide/globally'}:")
+                suggested_response_elements.append(
+                    f"Here are some resources that might be able to help with your situation"
+                    f" {'in ' + location_hint.title() if location_hint != 'global' else 'nationwide/globally'}:"
+                )
                 for resource in relevant_resources:
                     suggested_response_elements.append(f"- {resource}")
-                suggested_response_elements.append("Please reach out to them; they are specifically there to help
-with these challenges.")
+                suggested_response_elements.append(
+                    "Please reach out to them; they are specifically there to help with these challenges."
+                )
                 action_plan.append("Provide relevant resources.")
             else:
-                suggested_response_elements.append("I am searching for more specific resources for you. In the
-meantime, please remember the national/global crisis lines are always available.")
+                suggested_response_elements.append(
+                    "I am searching for more specific resources for you."
+                    " In the meantime, please remember the national/global crisis lines are always available."
+                )
                 if "general_crisis" in self.resource_db.resources["global"]:
-                     for resource in self.resource_db.resources["global"]["general_crisis"]:
-                         suggested_response_elements.append(f"- {resource}")
+                    for resource in self.resource_db.resources["global"]["general_crisis"]:
+                        suggested_response_elements.append(f"- {resource}")
                 action_plan.append("Search for more resources, potentially broaden scope.")
         else:
-             suggested_response_elements.append("If you haven't already, please consider reaching out to a crisis
-line. They offer immediate support.")
-             if "general_crisis" in self.resource_db.resources["global"]:
-                 for resource in self.resource_db.resources["global"]["general_crisis"]:
-                     suggested_response_elements.append(f"- {resource}")
+            suggested_response_elements.append(
+                "If you haven't already, please consider reaching out to a crisis line."
+                " They offer immediate support."
+            )
+            if "general_crisis" in self.resource_db.resources["global"]:
+                for resource in self.resource_db.resources["global"]["general_crisis"]:
+                    suggested_response_elements.append(f"- {resource}")
         # 5. Sustained Engagement
-        suggested_response_elements.append("I am here to listen and help in any way I can. Please keep talking
-with me.")
+        suggested_response_elements.append("I am here to listen and help in any way I can. Please keep talking with me.")
         action_plan.append("Maintain engagement.")
         # Output for the LLM to integrate
         return {
@@ -296,4 +340,3 @@ with me.")
             "action_plan_for_LLM_system": action_plan, # Instructions for the LLM's control flow
             "escalation_needed": escalation_needed
         }
-# To use this, you'd save it as a Python file (e.g., `empathy_core.py`)
