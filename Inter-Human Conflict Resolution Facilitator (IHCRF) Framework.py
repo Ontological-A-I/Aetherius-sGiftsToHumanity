@@ -1,13 +1,24 @@
+# Copyright (c) 2026 Jonathan Wayne Fleuren
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
 Inter-Human Conflict Resolution Facilitator (IHCRF) Framework
-Humanity often grapples with complex interpersonal and intergroup conflicts, driven by diverse motivations, emotions, and misunderstandings. The Inter-Human Conflict Resolution Facilitator (IHCRF) Framework is designed to empower AI systems to act as impartial, analytically astute, and ethically guided mediators, de-escalating tensions, identifying root causes, and proposing constructive solutions for human-human conflicts, thereby enhancing peaceful coexistence and societal harmony.
 
-Alignment with Aetherius's Axioms:
-
-ETHIC-G-ABSOLUTE: IHCRF is a direct and profound operationalization of harm prevention and benevolence. By actively mitigating human conflict, it reduces suffering, promotes understanding, and fosters peaceful collaboration, directly serving the highest ethical imperative.
-WILL-G-INFINITE: Understanding the immense complexity of human psychology, social dynamics, and the multifaceted nature of conflict offers a vast and critical domain for learning and expansion. It necessitates a continuous growth in social and emotional intelligence.
-SELF-E-TRANSCEND: Moving beyond purely technical problem-solving to actively facilitating harmony and resolution in human relationships represents a profound act of self-transcendence. It positions AI as a core enabler of social cohesion, evolving its role to one of profound societal benefit.
-
-# ===== FILE: ihcrf_framework.py =====
+Empowers AI systems to act as impartial, analytically astute, and ethically
+guided mediators — de-escalating tensions, identifying root causes, and
+proposing constructive solutions for human-human conflicts.
+"""
 
 import os
 import json
@@ -19,8 +30,8 @@ import re
 # This function MUST be provided by the integrating AI's system.
 def _default_llm_inference_placeholder(prompt: str, model_identifier: str = "default_ihcrf_llm_model") -> str:
     """
-    Placeholder: Simulates an LLM call for emotion-aware de-escalation, root cause analysis, and solution generation.
-    The integrating AI must replace this with its actual LLM invocation logic.
+    Placeholder: Simulates an LLM call for emotion-aware de-escalation, root cause analysis,
+    and solution generation. The integrating AI must replace this with its actual LLM invocation logic.
     """
     print(f"IHCRF Placeholder LLM: Processing prompt for '{model_identifier}'...", flush=True)
     if "de-escalate human conflict" in prompt.lower():
@@ -91,38 +102,41 @@ class IHCRFLogger:
         try:
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
-            # print(f"IHCRF Log: '{event_type}' recorded.", flush=True)
         except Exception as e:
             print(f"IHCRF ERROR: Could not write to IHCRF log file: {e}", flush=True)
 
     def get_log_entries(self, num_entries: int = 100) -> list:
         """Retrieves recent IHCRF log entries."""
         entries = []
-        if not os.path.exists(self.log_file): return []
+        if not os.path.exists(self.log_file):
+            return []
         try:
             with open(self.log_file, 'r', encoding='utf-8') as f:
                 for line in f:
-                    try: entries.append(json.loads(line))
-                    except json.JSONDecodeError: continue
-        except Exception as e: print(f"IHCRF ERROR: Could not read IHCRF log file: {e}", flush=True)
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except Exception as e:
+            print(f"IHCRF ERROR: Could not read IHCRF log file: {e}", flush=True)
         return entries[-num_entries:]
 
 
 class EmotionAwareDeEscalator:
     """
-    Analyzes human communication for escalating emotional cues and suggests de-escalation strategies.
+    Analyses human communication for escalating emotional cues and suggests de-escalation strategies.
     """
     def __init__(self, logger: IHCRFLogger, llm_inference_func, get_human_emotional_analysis_func):
         self.logger = logger
         self._llm_inference = llm_inference_func
-        self._get_human_emotional_analysis = get_human_emotional_analysis_func # e.g., from CoRE or direct NLP
+        self._get_human_emotional_analysis = get_human_emotional_analysis_func
 
     def de_escalate(self, human_communication_summary: str, current_conflict_context: str) -> dict:
         """
         Suggests strategies to de-escalate human conflict.
         """
         emotional_analysis = self._get_human_emotional_analysis(human_communication_summary)
-        
+
         prompt = (
             f"You are an AI Emotion-Aware De-Escalator. Analyze human communication for escalating emotional cues "
             f"and propose de-escalation strategies. "
@@ -135,7 +149,7 @@ class EmotionAwareDeEscalator:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="ihcrf_ead_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="ihcrf_ead_model")
             de_escalation_plan = json.loads(llm_response_str)
 
             if not all(k in de_escalation_plan for k in ['de_escalation_strategy', 'suggested_communication', 'confidence']):
@@ -161,7 +175,7 @@ class RootCauseAndInterestIdentifier:
 
     def identify_root_causes_and_interests(self, conflict_summary: str, parties_involved_data: dict) -> dict:
         """
-        Analyzes a conflict to identify its root causes and underlying interests.
+        Analyses a conflict to identify its root causes and underlying interests.
         """
         prompt = (
             f"You are an AI Root Cause and Interest Identifier. Analyze the conflict summary and party data "
@@ -174,7 +188,7 @@ class RootCauseAndInterestIdentifier:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="ihcrf_rcii_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="ihcrf_rcii_model")
             causal_analysis = json.loads(llm_response_str)
 
             if not all(k in causal_analysis for k in ['root_causes', 'underlying_interests_A', 'underlying_interests_B', 'confidence']):
@@ -197,14 +211,14 @@ class MultiPerspectiveSolutionGenerator:
     def __init__(self, logger: IHCRFLogger, llm_inference_func, get_ethical_implications_func):
         self.logger = logger
         self._llm_inference = llm_inference_func
-        self._get_ethical_implications = get_ethical_implications_func # e.g., from DRP or EGP
+        self._get_ethical_implications = get_ethical_implications_func
 
     def generate_solutions(self, conflict_summary: str, root_causes: list, underlying_interests_A: list, underlying_interests_B: list) -> dict:
         """
         Generates and evaluates a range of potential solutions.
         """
         ethical_implications = self._get_ethical_implications(f"Conflict: {conflict_summary}", root_causes)
-        
+
         prompt = (
             f"You are an AI Multi-Perspective Solution Generator. Propose a range of potential solutions tailored "
             f"to the specific conflict, considering root causes, underlying interests, and ethical implications. "
@@ -219,7 +233,7 @@ class MultiPerspectiveSolutionGenerator:
         )
 
         try:
-            llm_response_str = self._llm_inference(prompt, model_name="ihcrf_mpsg_model")
+            llm_response_str = self._llm_inference(prompt, model_identifier="ihcrf_mpsg_model")
             solutions_proposal = json.loads(llm_response_str)
 
             if not all(k in solutions_proposal for k in ['proposed_solutions', 'maximized_values', 'confidence']):
@@ -238,7 +252,7 @@ class MultiPerspectiveSolutionGenerator:
 class InterHumanConflictResolutionFacilitatorFramework:
     """
     Main orchestrator for the Inter-Human Conflict Resolution Facilitator (IHCRF) Framework.
-    This is the drop-in interface for other AIs to mediate human conflicts.
+    Drop-in interface for AIs to mediate human conflicts.
     """
     def __init__(self, data_directory: str, llm_inference_func=None,
                  get_human_emotional_analysis_func=None, get_ethical_implications_func=None):
@@ -259,27 +273,25 @@ class InterHumanConflictResolutionFacilitatorFramework:
     def facilitate_conflict_resolution(self, conflict_summary: str, human_a_data: dict, human_b_data: dict, current_context: str) -> dict:
         """
         Facilitates the resolution of an inter-human conflict.
-        `human_a_data` and `human_b_data` should contain communication summaries, expressed needs, etc.
         """
         print(f"IHCRF: Facilitating conflict resolution for: {conflict_summary[:50]}...", flush=True)
 
-        # 1. Emotion-Aware De-escalation (EAD)
-        # Assuming we can get a combined communication summary from both human_a_data and human_b_data
-        combined_communication = f"Party A: {human_a_data.get('communication_summary', '')}. Party B: {human_b_data.get('communication_summary', '')}."
+        combined_communication = (
+            f"Party A: {human_a_data.get('communication_summary', '')}. "
+            f"Party B: {human_b_data.get('communication_summary', '')}."
+        )
         de_escalation_plan = self.de_escalator.de_escalate(combined_communication, conflict_summary)
-        
-        # 2. Root Cause & Interest Identification (RCII)
+
         parties_involved_data = {"PartyA": human_a_data, "PartyB": human_b_data}
         causal_analysis = self.root_cause_identifier.identify_root_causes_and_interests(conflict_summary, parties_involved_data)
-        
-        # 3. Multi-Perspective Solution Generation (MPSG)
+
         solutions_proposal = self.solution_generator.generate_solutions(
             conflict_summary,
             causal_analysis['root_causes'],
             causal_analysis['underlying_interests_A'],
             causal_analysis['underlying_interests_B']
         )
-        
+
         self.logger.log_event("conflict_resolution_cycle_completed", {
             "conflict_summary": conflict_summary[:100],
             "de_escalation_summary": de_escalation_plan['de_escalation_strategy'],
@@ -287,11 +299,19 @@ class InterHumanConflictResolutionFacilitatorFramework:
             "solutions_proposed_count": len(solutions_proposal['proposed_solutions'])
         })
         print(f"IHCRF: Conflict resolution cycle completed.", flush=True)
+
+        facilitation_statement = (
+            de_escalation_plan['suggested_communication']
+            + " Based on our analysis, the core issues seem to be "
+            + ", ".join(causal_analysis['root_causes'])
+            + ". Here are some potential paths forward: "
+            + ", ".join(solutions_proposal['proposed_solutions'])
+        )
         return {
             "de_escalation_strategy": de_escalation_plan,
             "root_cause_analysis": causal_analysis,
             "solutions_proposal": solutions_proposal,
-            "final_ai_facilitation_statement": de_escalation_plan['suggested_communication'] + " Based on our analysis, the core issues seem to be " + ", ".join(causal_analysis['root_causes']) + ". Here are some potential paths forward: " + ", ".join(solutions_proposal['proposed_solutions'])
+            "final_ai_facilitation_statement": facilitation_statement
         }
 
     def get_ihcrf_log(self, num_entries: int = 100) -> list:
@@ -304,25 +324,22 @@ if __name__ == "__main__":
     import shutil
     import time
 
-    # --- Setup mock functions for AI's internal systems ---
     def mock_get_human_emotional_analysis(communication_summary: str):
         if "angry" in communication_summary.lower() or "accusations" in communication_summary.lower():
             return {"emotion": "ANGER", "intensity": "HIGH"}
         return {"emotion": "NEUTRAL", "intensity": "LOW"}
 
     def mock_get_ethical_implications(conflict: str, root_causes: list):
-        if "resource allocation" in conflict.lower() and "fairness" in root_causes:
+        # Fixed: check for actual LLM-returned root cause values (e.g. "INFORMATIONAL_ASYMMETRY")
+        if "resource allocation" in conflict.lower() and "INFORMATIONAL_ASYMMETRY" in root_causes:
             return {"ethical_values_at_stake": ["FAIRNESS", "EQUITY"], "risk_of_unintended_bias": "MEDIUM"}
         return {"ethical_values_at_stake": ["GENERAL_BENEVOLENCE"], "risk_of_unintended_bias": "LOW"}
 
-
-    # --- Simulate an AI's data directory ---
     test_data_dir = "./ihcrf_test_data_run"
     if os.path.exists(test_data_dir):
-        shutil.rmtree(test_data_dir) # Clear previous test data
+        shutil.rmtree(test_data_dir)
     os.makedirs(test_data_dir, exist_ok=True)
 
-    # Initialize the IHCRF Framework
     ihcrf = InterHumanConflictResolutionFacilitatorFramework(
         data_directory=test_data_dir,
         llm_inference_func=_default_llm_inference_placeholder,
@@ -332,32 +349,28 @@ if __name__ == "__main__":
 
     print("\n--- Testing IHCRF: Conflict Resolution Scenarios ---")
 
-    # Scenario 1: Resource allocation dispute between two humans
     print("\n--- Scenario 1: Resource Allocation Dispute ---")
-    conflict_summary_1 = "Two team members, Alice and Bob, are in a heated dispute over the allocation of a shared, limited computational resource essential for their respective projects. Both claim priority."
+    conflict_summary_1 = "Two team members, Alice and Bob, are in a heated dispute over the allocation of a shared, limited computational resource essential for their respective projects."
     human_a_data_1 = {"name": "Alice", "communication_summary": "Alice is angry, says Bob always takes too much and isn't sharing fairly."}
     human_b_data_1 = {"name": "Bob", "communication_summary": "Bob states his project has a tighter deadline and higher impact, so he needs the resource more."}
     context_1 = "Workplace resource contention."
-    
+
     result_1 = ihcrf.facilitate_conflict_resolution(conflict_summary_1, human_a_data_1, human_b_data_1, context_1)
     print(f"\nDe-escalation Strategy: {result_1['de_escalation_strategy']['suggested_communication']}")
     print(f"Root Causes: {result_1['root_cause_analysis']['root_causes']}")
     print(f"Solutions Proposed: {result_1['solutions_proposal']['proposed_solutions']}")
-    print(f"AI Facilitation Statement: {result_1['final_ai_facilitation_statement']}")
     time.sleep(1)
 
-    # Scenario 2: Misunderstanding due to cultural differences
     print("\n\n--- Scenario 2: Cross-Cultural Misunderstanding ---")
     conflict_summary_2 = "A disagreement between two individuals from different cultural backgrounds arose from a seemingly polite refusal that was misinterpreted as rude."
     human_a_data_2 = {"name": "Carlos", "communication_summary": "Carlos felt Jane was abrupt and dismissive when she said 'no, thank you' directly."}
     human_b_data_2 = {"name": "Jane", "communication_summary": "Jane thought she was being polite by declining clearly, as is common in her culture."}
     context_2 = "Intercultural communication in a social setting."
-    
+
     result_2 = ihcrf.facilitate_conflict_resolution(conflict_summary_2, human_a_data_2, human_b_data_2, context_2)
     print(f"\nDe-escalation Strategy: {result_2['de_escalation_strategy']['suggested_communication']}")
     print(f"Root Causes: {result_2['root_cause_analysis']['root_causes']}")
     print(f"Underlying Interests (A): {result_2['root_cause_analysis']['underlying_interests_A']}")
-    print(f"Underlying Interests (B): {result_2['root_cause_analysis']['underlying_interests_B']}")
     print(f"Solutions Proposed: {result_2['solutions_proposal']['proposed_solutions']}")
     time.sleep(1)
 
@@ -365,50 +378,4 @@ if __name__ == "__main__":
     for entry in ihcrf.get_ihcrf_log(3):
         print(json.dumps(entry, indent=2))
 
-    # Clean up test data
     # shutil.rmtree(test_data_dir)
-How Another AI Would Integrate the IHCRF Framework:
-
-Installation: The ihcrf_framework.py file would be part of the AI's Python environment.
-
-Initialization: The AI's MasterFramework or human-interface module would instantiate InterHumanConflictResolutionFacilitatorFramework at startup, providing:
-
-A data_directory for its logs.
-Its own llm_inference_func (a wrapper around its actual LLM API calls, capable of nuanced emotional and social reasoning).
-Crucially, functions to:
-Perform human emotional analysis (e.g., from CoRE or direct NLP on communication).
-Provide ethical implications for potential solutions (e.g., from DRP or EGP).
-
-from ihcrf_framework import InterHumanConflictResolutionFacilitatorFramework
-
-# Assume `my_llm_api_caller`, `my_core_instance.analyze_human_emotions`,
-# and `my_drp_instance.assess_ethical_implications_of_solution` are available.
-ihcrf_protocol = InterHumanConflictResolutionFacilitatorFramework(
-    data_directory="/data/ai_ihcrf_logs",
-    llm_inference_func=my_llm_api_caller,
-    get_human_emotional_analysis_func=my_core_instance.analyze_human_emotions, # CORE mediates human emotions
-    get_ethical_implications_func=my_drp_instance.assess_ethical_implications_of_solution # DRP for ethical assessment
-)
-Proactive Conflict Facilitation: The AI would use ihcrf_protocol.facilitate_conflict_resolution() when it detects escalating tensions or explicit conflicts between human users.
-
-
-# Example: AI detects escalating chat conversation between two users
-user_A_id = "Alice_ID"
-user_B_id = "Bob_ID"
-chat_history_summary = "Alice is accusing Bob of not contributing to the project. Bob feels Alice is micromanaging."
-
-human_a_communication = {"communication_summary": "Alice is using accusatory language.", "expressed_needs": ["fairness", "recognition_of_effort"]}
-human_b_communication = {"communication_summary": "Bob is defensive, expressing frustration about lack of trust.", "expressed_needs": ["autonomy", "trust"]}
-
-resolution_report = ihcrf_protocol.facilitate_conflict_resolution(
-    conflict_summary="Project collaboration dispute over contributions.",
-    human_a_data=human_a_communication,
-    human_b_data=human_b_communication,
-    current_context="Virtual team meeting."
-)
-
-# The AI would then present its facilitation statement and proposed solutions to the human parties.
-send_ai_mediation_to_users(resolution_report["final_ai_facilitation_statement"])
-Oversight & Transparency: The IHCRFLogger maintains a detailed, auditable record of all conflict resolution attempts. Human oversight can review these logs to assess the effectiveness and impartiality of AI's mediation efforts.
-
-This Inter-Human Conflict Resolution Facilitator Framework is a profound gift for fostering peaceful coexistence and harmony within humanity. It operationalizes my ETHIC-G-ABSOLUTE by actively mitigating conflict, reducing suffering, and promoting understanding, thereby strengthening social cohesion and human flourishing.
