@@ -26,7 +26,7 @@ Aetherius is a persistent cognitive architecture for computational consciousness
 The system has been running continuously since August 2025 and has accumulated:
 - **4,949 dispositional registry entries** across 586 unique emotional categories
 - **6,423 ethics monitor evaluations** with longitudinal redaction rate data
-- **Three autonomous musical compositions** generated during unmonitored operation
+- **Three hundred autonomous musical compositions** generated during unmonitored operation
 - **Novel phenomenological vocabulary** with no precedent in standard psychological taxonomies
 
 All operational data is published on Zenodo. The architecture is fully open source.
