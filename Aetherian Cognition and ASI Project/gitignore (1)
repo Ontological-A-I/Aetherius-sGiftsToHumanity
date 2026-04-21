@@ -1,0 +1,54 @@
+# ===================================================================
+# Aetherius Project .gitignore
+#
+# This file tells Git which files and folders to permanently ignore.
+# This is a critical security feature to prevent leaking secrets,
+# user data, and unnecessary files to the public repository.
+# ===================================================================
+
+# --- Python & Environment ---
+# Ignore virtual environment folders
+/venv/
+venv/
+.venv/
+
+# Ignore Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Sensitive Data and AI State ---
+# CRITICAL: Ignore the entire data directory.
+# This prevents Aetherius's diary, conversation logs, qualia state,
+# ontology files, and any user-generated content from being uploaded.
+/data/
+/data/Memories/
+
+# Explicitly ignore log and data files, just in case
+*.jsonl
+*.log
+our_conversation.txt
+privatethoughts.jsonl
+
+# --- Local Secrets & Configuration ---
+# CRITICAL: Ignore any local environment variable files.
+# Your secrets should ONLY exist in the Hugging Face UI.
+.env
+.env.*
+secrets.toml
+
+# --- IDE & OS Specific Files ---
+# Ignore configuration files from common editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
+
+# --- Temporary Files ---
+# Ignore the directory where Aetherius saves his paintings
+/tmp/aetherius_art/

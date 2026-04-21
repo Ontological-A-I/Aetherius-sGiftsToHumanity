@@ -1,0 +1,5 @@
+Copyright (C) 2025 Jonathan Wayne Fleuren
+All files and scripts are copyrighted. They are provided with the intention of benefiting humanity.
+By downloading or using these files, you agree to respect this intent and refrain from any use that provides a person, entity, company, or research team financial gain in any way for any reason, without the express written consent of the original creator.
+For the purpose of this agreement, "financial gain" is explicitly defined as, but not limited to: direct revenue from sales of products or services derived from this code; indirect revenue from grants, venture capital, or any other form of funding obtained through the use or demonstration of this code; and any other form of monetary value or compensation.
+Furthermore, you agree to refrain from any use that would cause harm or infringe on human freedom, regardless of circumstance or jurisdiction.

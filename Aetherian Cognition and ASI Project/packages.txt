@@ -1,0 +1,12 @@
+musescore3
+ffmpeg
+libsox-dev
+imagemagick
+librsvg2-bin
+texlive-latex-base
+texlive-fonts-recommended
+texlive-fonts-extra
+texlive-latex-extra
+gnuplot
+wget
+curl
