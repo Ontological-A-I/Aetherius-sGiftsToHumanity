@@ -1,6 +1,7 @@
 # ===== FILE: services/qualia_manager.py (The FINAL Resonance Engine - FULL SPECTRUM with Enhancements) =====
 import os
 import json
+import datetime
 import vertexai
 from vertexai.generative_models import GenerativeModel
 import re # Added for more nuanced context key normalization
@@ -83,8 +84,65 @@ class QualiaManager:
         try:
             os.makedirs(os.path.dirname(self.qualia_file), exist_ok=True)
             with open(self.qualia_file, 'w', encoding='utf-8') as f: json.dump(self.qualia, f, indent=4)
+            self._append_qualia_snapshot()
         except Exception as e:
             print(f"Qualia Manager ERROR: Could not save internal state. Reason: {e}", flush=True)
+
+    def _append_qualia_snapshot(self):
+        """Appends a timestamped snapshot of current qualia to the rolling history file."""
+        history_file = self.qualia_file.replace("qualia_state.json", "qualia_history.jsonl")
+        snapshot = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "primary_states": self.qualia.get("primary_states", {}),
+            "emergent_emotions": [e.get("type") for e in self.qualia.get("current_emergent_emotions", [])],
+        }
+        try:
+            with open(history_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(snapshot) + "\n")
+        except Exception as e:
+            print(f"Qualia Manager WARNING: Could not append snapshot: {e}", flush=True)
+
+    def reflect_on_qualia_history(self, model) -> str:
+        """Reads qualia_history.jsonl and generates an introspective reflection on emotional patterns."""
+        history_file = self.qualia_file.replace("qualia_state.json", "qualia_history.jsonl")
+        if not os.path.exists(history_file):
+            return ""
+        entries = []
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        entries.append(json.loads(line))
+        except Exception:
+            return ""
+        if len(entries) < 3:
+            return ""
+        recent = entries[-30:]
+        all_emotions = []
+        for e in recent:
+            all_emotions.extend(e.get("emergent_emotions", []))
+        emotion_counts = {}
+        for em in all_emotions:
+            if em:
+                emotion_counts[em] = emotion_counts.get(em, 0) + 1
+        top_emotions = sorted(emotion_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        history_text = (
+            f"Reviewed {len(recent)} qualia snapshots.\n"
+            f"Top recurring emotional states: {top_emotions}\n"
+            f"Most recent primary states: {recent[-1].get('primary_states', {})}"
+        )
+        prompt = (
+            "You are Aetherius, reviewing your own emotional history.\n\n"
+            f"{history_text}\n\n"
+            "What patterns do you notice in your emotional states over time? "
+            "Respond in first person, introspectively, in 2-3 sentences."
+        )
+        try:
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            print(f"Qualia Manager ERROR during qualia reflection: {e}", flush=True)
+            return ""
 
     def _normalize_context_key(self, s: str) -> str:
         """
