@@ -2,7 +2,31 @@
 import os
 import json
 import datetime
+import tempfile
 from pathlib import Path
+
+
+def _safe_write(filepath: str, content: str):
+    """
+    Bucket-safe atomic write. Writes to a temp file in the SAME directory,
+    then renames over the target. Within one directory on a FUSE-mounted
+    bucket, rename is atomic. Direct open('w') is NOT safe — a crash
+    mid-write silently zeroes the file on object storage.
+    """
+    dirpath = os.path.dirname(os.path.abspath(filepath))
+    os.makedirs(dirpath, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_sb_", dir=dirpath)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+            f.flush()
+        os.replace(tmp_path, filepath)
+    except Exception:
+        try:
+            os.remove(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
 
 # Tags that indicate procedural/how-to content worth extracting separately
 PROCEDURAL_TAGS = {
@@ -148,21 +172,23 @@ class DomainLayer:
             condensed = json.loads(cleaned)
 
             if isinstance(condensed, list) and len(condensed) > 0:
-                # Overwrite legend with condensed entries
-                with open(self.legend_path, "w", encoding="utf-8") as f:
-                    for item in condensed:
-                        item["domain"]    = self.domain_name
-                        item["timestamp"] = datetime.datetime.now().isoformat()
-                        f.write(json.dumps(item, ensure_ascii=False) + "\n")
+                # Build condensed legend content
+                now_iso = datetime.datetime.now().isoformat()
+                legend_lines = []
+                for item in condensed:
+                    item["domain"]    = self.domain_name
+                    item["timestamp"] = now_iso
+                    legend_lines.append(json.dumps(item, ensure_ascii=False))
+                # Atomic write — safe on bucket/FUSE storage
+                _safe_write(self.legend_path, "\n".join(legend_lines) + "\n")
 
                 print(f"[SecondaryBrain] '{self.domain_name}' condensed from {count} → {len(condensed)} entries.", flush=True)
 
-                # Also update condensed_ontology.txt with a summary
-                ontology_lines = [f"Domain: {self.domain_name}", f"Condensed at: {datetime.datetime.now().isoformat()}", ""]
+                # Also update condensed_ontology.txt with a summary (atomic)
+                ontology_lines = [f"Domain: {self.domain_name}", f"Condensed at: {now_iso}", ""]
                 for item in condensed:
                     ontology_lines.append(f"  [{item.get('sqt','')}] {item.get('summary','')}")
-                with open(self.ontology_path, "w", encoding="utf-8") as f:
-                    f.write("\n".join(ontology_lines))
+                _safe_write(self.ontology_path, "\n".join(ontology_lines))
 
                 return True
 
@@ -310,8 +336,8 @@ class SecondaryBrain:
                 "concept_count": concept_count,
                 "last_active":   last_active
             }
-        with open(self.index_path, "w", encoding="utf-8") as f:
-            json.dump(index, f, indent=2, ensure_ascii=False)
+        # Atomic write — safe on bucket/FUSE storage
+        _safe_write(self.index_path, json.dumps(index, indent=2, ensure_ascii=False))
 
     def _get_or_create_domain(self, domain_name: str) -> DomainLayer:
         """
@@ -351,6 +377,88 @@ class SecondaryBrain:
 
         # 4. Update brain index
         self._save_index()
+
+    def extract_and_crystallize_reasoning_logic(self, raw_text: str, sqt_data: dict) -> bool:
+        """
+        Analyzes ingested content for educational or instructional reasoning logic —
+        the kind found in textbooks, course material, or any source that teaches
+        HOW and WHY something works (e.g. calculus derivations, physics proofs,
+        logical frameworks, programming algorithms with explanations).
+
+        Extracts the concept name, the underlying reasoning framework (the WHY),
+        worked examples, key rules/formulas, and prerequisites, then stores them
+        as a crystallized entry in the domain's reasoning_crystals.jsonl file so
+        Aetherius retains durable, structured knowledge of how to reason through
+        that subject — not just that it exists.
+
+        Call this alongside or after ingest() whenever ingested content may be
+        educational or instructional in nature.
+        Returns True if reasoning logic was found and crystallized, False otherwise.
+        """
+        domain = sqt_data.get("domain")
+        if not domain:
+            return False
+        domain = domain.lower().strip()
+
+        model = self.models.get("logos_core") or self.models.get("logic_core")
+        if not model:
+            print("[SecondaryBrain] Reasoning crystallization skipped: no logos/logic core available.", flush=True)
+            return False
+
+        layer = self._get_or_create_domain(domain)
+        reasoning_crystals_path = os.path.join(layer.domain_dir, "reasoning_crystals.jsonl")
+
+        prompt = (
+            f"You are analyzing educational or instructional content for the domain of '{domain}'.\n\n"
+            f"--- TEXT ---\n{raw_text[:4000]}\n--- END TEXT ---\n\n"
+            "Determine whether this text contains educational or instructional reasoning logic — "
+            "meaning it teaches HOW or WHY something works, not just states a fact. "
+            "Examples: a calculus textbook explaining derivatives, a chemistry book showing "
+            "reaction mechanisms, a logic textbook proving a theorem, a programming guide "
+            "explaining an algorithm with worked steps.\n\n"
+            "If such reasoning logic is present, extract it. Respond ONLY with a JSON object:\n"
+            "  'found': true or false\n"
+            "  'concept': the name of the concept, theorem, skill, or method being taught\n"
+            "  'reasoning_framework': the underlying logical or mathematical framework — "
+            "the WHY it works, not just the steps\n"
+            "  'worked_examples': list of worked example strings (self-contained) extracted or "
+            "inferred from the text (up to 3)\n"
+            "  'key_rules': list of key rules, formulas, axioms, or principles stated (up to 5)\n"
+            "  'prerequisites': list of concepts the learner must already understand to grasp this one\n\n"
+            "If no educational reasoning logic is found, return {\"found\": false}."
+        )
+
+        try:
+            response = model.generate_content(prompt)
+            cleaned  = response.text.strip().replace("```json", "").replace("```", "")
+            result   = json.loads(cleaned)
+
+            if result.get("found") and result.get("concept"):
+                entry = {
+                    "domain":              domain,
+                    "concept":             result.get("concept", ""),
+                    "reasoning_framework": result.get("reasoning_framework", ""),
+                    "worked_examples":     result.get("worked_examples", []),
+                    "key_rules":           result.get("key_rules", []),
+                    "prerequisites":       result.get("prerequisites", []),
+                    "sqt":                 sqt_data.get("sqt", ""),
+                    "summary":             sqt_data.get("summary", ""),
+                    "timestamp":           datetime.datetime.now().isoformat(),
+                }
+                with open(reasoning_crystals_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                print(
+                    f"[SecondaryBrain] Crystallized reasoning logic: '{result['concept']}' "
+                    f"in domain '{domain}'.",
+                    flush=True,
+                )
+                self._save_index()
+                return True
+
+        except Exception as e:
+            print(f"[SecondaryBrain] Reasoning crystallization error for '{domain}': {e}", flush=True)
+
+        return False
 
     def search(self, query: str, top_k: int = 3) -> str:
         """
