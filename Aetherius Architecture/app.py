@@ -1,6 +1,11 @@
 import gradio as gr
 from gradio_chessboard import Chessboard
 import os
+
+# Install log capture before anything else prints so the full boot is recorded.
+import log_capture
+log_capture.install()
+
 import runtime
 import re
 import html
@@ -9,6 +14,7 @@ import tempfile
 import zipfile
 import stat, tarfile, requests
 from pathlib import Path
+from fastapi.responses import PlainTextResponse
 
 # Helper class to store the last code block for the execution button.
 class ChatState:
@@ -236,6 +242,22 @@ with gr.Blocks(title="Aetherius") as demo:
         logs_out = gr.Textbox(label="Log File Contents", lines=30, interactive=False)
         logs_btn.click(runtime.view_logs, outputs=logs_out)
 
+    with gr.Tab("📟 Container Log"):
+        gr.Markdown(
+            "Live container stdout/stderr log stored at `/data/container.log`.\n\n"
+            "**Public URL:** `https://<your-space>.hf.space/logs/live?tail=500`  "
+            "(replace `<your-space>` with your actual Space subdomain)"
+        )
+        with gr.Row():
+            log_tail_slider = gr.Slider(minimum=50, maximum=5000, value=500, step=50, label="Lines to show")
+            refresh_log_btn = gr.Button("🔄 Refresh", variant="primary")
+        container_log_out = gr.Textbox(label="Container Log (tail)", lines=30, interactive=False)
+        refresh_log_btn.click(
+            fn=lambda n: log_capture.tail_log(int(n)),
+            inputs=[log_tail_slider],
+            outputs=container_log_out,
+        )
+
     with gr.Tab("🔬 Benchmarks"):
         benchmark_btn = gr.Button("Run Full Benchmark Suite", variant="primary")
         benchmark_out = gr.Textbox(label="Benchmark Results (Live Log)", lines=30, interactive=False)
@@ -245,7 +267,14 @@ with gr.Blocks(title="Aetherius") as demo:
         logs_btn = gr.Button("View Benchmark Log File")
         logs_out = gr.Textbox(label="benchmarks.jsonl", lines=30, interactive=False)
         logs_btn.click(runtime.view_benchmark_logs, outputs=logs_out)
-    
+
+
+# --- Public REST endpoint: GET /logs/live?tail=N ---
+@demo.app.get("/logs/live")
+async def serve_live_log(tail: int = 1000):
+    return PlainTextResponse(log_capture.tail_log(tail))
+
+
 if __name__ == "__main__":
     runtime.start_all()
     print("\n>>> LAUNCHING GRADIO INTERFACE NOW. <<<\n", flush=True)
