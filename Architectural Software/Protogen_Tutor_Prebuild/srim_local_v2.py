@@ -84,6 +84,15 @@ class SRIMLocal:
         except:
             pass
     
+    def store_event(self, event_type: str, description: str = "",
+                    emotional_context: dict = None, metadata: dict = None):
+        """Thin wrapper over log_event for callers that use keyword args."""
+        self.log_event(event_type, {
+            "description": description,
+            "emotional_context": emotional_context or {},
+            "metadata": metadata or {}
+        })
+    
     def log_memory(self, summary: str, concepts: list):
         memory = {
             "timestamp": datetime.datetime.now().isoformat(),
