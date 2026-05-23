@@ -397,3 +397,7 @@ class DynamicSQTNetwork:
             print(f"✓ Loaded {len(self.sqt_embeddings)} embeddings from {path}")
         except Exception as e:
             print(f"Could not load embeddings: {e}")
+
+
+# Export alias so callers can import SQTNeuralNetwork
+SQTNeuralNetwork = DynamicSQTNetwork

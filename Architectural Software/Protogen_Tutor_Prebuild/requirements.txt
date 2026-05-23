@@ -6,6 +6,10 @@ numpy>=1.21.0
 networkx>=2.6.0
 scipy>=1.7.0
 
+# Document parsing
+pypdf>=3.0.0
+python-docx>=0.8.0
+
 # Optional: Web interface
 gradio>=4.0.0
 
