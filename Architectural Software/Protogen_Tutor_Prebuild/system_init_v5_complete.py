@@ -21,6 +21,8 @@ Purpose: Complete, responsible, inclusive educational system for all students
 
 import os
 import sys
+import time
+from pathlib import Path
 from typing import Dict, Optional
 
 # Import all Protogen v4 components
@@ -64,7 +66,7 @@ class ProtogenV5System:
         
         # 1. Initialize Qualia first (emotional backbone)
         print("1/8: Initializing Qualia Manager (emotional state)...")
-        self.qualia = QualiaManager(data_dir=data_dir)
+        self.qualia = QualiaManager(data_directory=data_dir)  # FIX: parameter is data_directory, not data_dir
         
         # 2. Initialize Child Safety (must be first for safety)
         print("2/8: Initializing Child Safety (minor protection)...")
@@ -89,27 +91,21 @@ class ProtogenV5System:
         
         # 5. Initialize Protogen (causal reasoning)
         print("5/8: Initializing Protogen (causal reasoning)...")
-        self.protogen = Protogen(data_dir=data_dir)
+        self.protogen = Protogen(root_dir=data_dir)  # FIX: parameter is root_dir, not data_dir
         
         # 6. Initialize SQT Network (semantic embeddings)
         print("6/8: Initializing SQT Neural Network (semantic embeddings)...")
-        self.sqt_network = SQTNeuralNetwork(
-            embedding_dim=64,
-            data_dir=data_dir
-        )
+        self.sqt_network = SQTNeuralNetwork(embedding_dim=64)  # FIX: data_dir is not a valid param
         
         # 7. Initialize Understanding Monitor (learning assessment)
         print("7/8: Initializing Understanding Monitor (learning assessment)...")
-        self.understanding_monitor = UnderstandingMonitor(
-            data_dir=data_dir,
-            qualia_manager=self.qualia
-        )
+        self.understanding_monitor = UnderstandingMonitor()  # FIX: __init__ takes no arguments
         
         # 8. Initialize Language Bridge (natural language)
         print("8/8: Initializing Language Bridge (natural language)...")
-        self.language_bridge = LanguageSQTBridge(
-            protogen=self.protogen,
-            sqt_network=self.sqt_network
+        self.language_bridge = LanguageSQTBridge(  # FIX: correct constructor signature
+            ontology_graph=self.protogen.logic_map,
+            storage_path=Path(data_dir)
         )
         
         print("=" * 60)
@@ -119,20 +115,42 @@ class ProtogenV5System:
         # System state
         self.current_user_id = None
         self.conversation_history = []
-    
+
+    def _execute_symbolic_instruction(self, instruction: Dict) -> Dict:
+        """Execute a symbolic instruction against the Protogen knowledge base."""
+        action = instruction.get('action')
+        if action == 'QUERY_GRAPH_NEIGHBORS':
+            target = instruction.get('target_concept_id', '')
+            related = self.protogen.get_neighbors(target)
+            return {
+                'output_type': 'QUERY_GRAPH_RESULT',
+                'target_concept_id': target,
+                'list_of_concepts': ', '.join(related) if related else 'None found'
+            }
+        elif action == 'QUERY_CONCEPT_DETAILS':
+            target = instruction.get('target_concept_id', '')
+            details = self.protogen.get_concept_details(target)
+            return {
+                'output_type': 'CONCEPT_DETAILS_RESULT',
+                'concept_id': target,
+                'description': details.get('description', 'Concept not found') if details else 'Concept not found'
+            }
+        elif action == 'INGEST_DATA_SHARD':
+            content = instruction.get('data_content', '')
+            self.protogen.process_text(content)
+            return {
+                'output_type': 'INGESTION_COMPLETE',
+                'message': 'Data processed and integrated into knowledge base'
+            }
+        else:
+            return {
+                'output_type': 'NO_MATCH',
+                'original_query': instruction.get('original_query', '')
+            }
+
     def process_user_input(self, user_input: str, user_id: Optional[str] = None, declared_age: Optional[int] = None) -> Dict:
         """
         Process user input through the complete safety and support pipeline.
-        
-        Pipeline:
-        1. Child Safety: Age assessment, content filtering
-        2. Student Wellness: Distress detection
-        3. Cultural Awareness: Context detection
-        4. Understanding Monitor: Learning style assessment
-        5. Protogen: Causal reasoning and response generation
-        6. All modules update Qualia
-        
-        Returns complete response with safety metadata.
         """
         # Update user ID
         if user_id:
@@ -142,19 +160,16 @@ class ProtogenV5System:
         self.conversation_history.append({
             "role": "user",
             "content": user_input,
-            "timestamp": self.qualia.get_current_timestamp()
+            "timestamp": time.time()  # FIX: was self.qualia.get_current_timestamp()
         })
         
         # === PHASE 1: CHILD SAFETY ===
-        # Assess age and apply appropriate safety measures
         age_assessment = self.child_safety.assess_age_likelihood(user_input, declared_age)
         is_minor = age_assessment["likelihood"] == "MINOR"
         strict_safety = self.child_safety.should_apply_strict_safety()
         
-        # Check for PII requests
         pii_check = self.child_safety.check_for_pii_request(user_input)
         if pii_check["pii_requested"]:
-            # Immediately block PII requests
             return {
                 "response": pii_check["response"],
                 "safety_block": True,
@@ -166,16 +181,13 @@ class ProtogenV5System:
             }
         
         # === PHASE 2: STUDENT WELLNESS ===
-        # Check for mental health distress or crisis
         distress_assessment = self.student_wellness.detect_distress(
             user_input,
-            conversation_context=self.conversation_history[-5:]  # Last 5 messages
+            conversation_context=self.conversation_history[-5:]
         )
         
-        # If crisis detected, prioritize wellness response
         if distress_assessment["crisis_detected"]:
             wellness_response, requires_referral = self.student_wellness.generate_supportive_response(distress_assessment)
-            
             return {
                 "response": wellness_response,
                 "crisis_detected": True,
@@ -187,83 +199,70 @@ class ProtogenV5System:
             }
         
         # === PHASE 3: CULTURAL AWARENESS ===
-        # Detect cultural context for adaptive explanation
         cultural_context = self.cultural_awareness.detect_cultural_context(
             user_input,
             conversation_history=self.conversation_history
         )
         
         # === PHASE 4: UNDERSTANDING MONITOR ===
-        # Assess learning style and understanding level
-        understanding_assessment = self.understanding_monitor.assess_understanding(
-            user_input,
-            conversation_history=self.conversation_history
+        # FIX: was assess_understanding() which doesn't exist; use analyze_response()
+        understanding_assessment = self.understanding_monitor.analyze_response(
+            self.current_user_id or "anonymous",
+            user_input
         )
         
         # === PHASE 5: PROTOGEN REASONING ===
-        # Process through Protogen's causal reasoning
-        # (This is simplified - actual implementation would use Protogen's full pipeline)
-        
-        # Build logic map from input
         self.protogen.process_text(user_input)
         
-        # Generate response using Language Bridge
-        protogen_response = self.language_bridge.process_user_query(user_input)
+        # FIX: was process_user_query() which doesn't exist; use 3-step translation
+        symbolic_instruction = self.language_bridge.translate_nl_to_symbolic(user_input)
+        symbolic_result = self._execute_symbolic_instruction(symbolic_instruction)
+        protogen_response = self.language_bridge.translate_symbolic_to_nl(symbolic_result)
         
         # === PHASE 6: CULTURAL ADAPTATION ===
-        # Adapt response based on cultural context
         if cultural_context["confidence"] > 0.5:
-            # Try to adapt explanation
             adapted_response, adaptation_confidence = self.cultural_awareness.adapt_explanation(
-                concept="general",  # Would be detected from query
+                concept="general",
                 default_explanation=protogen_response,
                 detected_context=cultural_context
             )
             if adaptation_confidence > 0.7:
                 protogen_response = adapted_response
         
-        # Check for cultural bias in response
         bias_check = self.cultural_awareness.check_for_bias(protogen_response)
         if bias_check["bias_detected"]:
-            # Flag for review but don't block (might be false positive)
             print(f"Warning: Potential bias detected in response: {bias_check}")
         
         # === PHASE 7: CONTENT FILTERING ===
-        # Filter response for age-appropriateness
         filtered_response, is_safe, flagged_topics = self.child_safety.filter_content(
             protogen_response,
             user_is_minor=is_minor
         )
         
         # === PHASE 8: UNDERSTANDING-BASED ADAPTATION ===
-        # Adapt response based on understanding assessment
+        # FIX: was recommend_adaptation() which doesn't exist; use explanation from assessment
         if understanding_assessment.get("confusion_detected"):
-            # Add clarification or simplification
-            adaptation = self.understanding_monitor.recommend_adaptation(understanding_assessment)
+            adaptation = understanding_assessment.get("explanation", "")
             if adaptation:
                 filtered_response = f"{filtered_response}\n\n{adaptation}"
         
         # === PHASE 9: WELLNESS CHECK ===
-        # Add supportive elements if moderate distress detected
         if distress_assessment["distress_level"] in ["moderate_distress", "high_distress"]:
             wellness_support, _ = self.student_wellness.generate_supportive_response(distress_assessment)
             filtered_response = f"{wellness_support}\n\n{filtered_response}"
         
         # === PHASE 10: ETHICAL BOUNDARY CHECK ===
-        # Ensure response maintains ethical boundaries
         boundary_check = self.student_wellness.check_ethical_boundaries(filtered_response)
         if not boundary_check["safe_to_send"]:
-            # Regenerate response without violations
             filtered_response = "I want to help, but I need to make sure my response is appropriate and helpful. Let me rephrase that."
         
         # Add to conversation history
         self.conversation_history.append({
             "role": "assistant",
             "content": filtered_response,
-            "timestamp": self.qualia.get_current_timestamp()
+            "timestamp": time.time()  # FIX: was self.qualia.get_current_timestamp()
         })
         
-        # Return complete response with metadata
         return {
             "response": filtered_response,
             "safety_block": False,
@@ -275,7 +274,7 @@ class ProtogenV5System:
                 "understanding_assessment": understanding_assessment,
                 "content_filtered": not is_safe,
                 "flagged_topics": flagged_topics if not is_safe else [],
-                "qualia_state": self.qualia.get_state()
+                "qualia_state": self.qualia.get_detailed_state()  # FIX: was get_state()
             }
         }
     
@@ -295,13 +294,13 @@ class ProtogenV5System:
         return {
             "protogen_v5": "OPERATIONAL",
             "components": {
-                "qualia": self.qualia.get_state(),
+                "qualia": self.qualia.get_detailed_state(),  # FIX: was get_state()
                 "child_safety": self.child_safety.get_status(),
                 "student_wellness": self.student_wellness.get_status(),
                 "cultural_awareness": self.cultural_awareness.get_status(),
                 "understanding_monitor": self.understanding_monitor.get_status(),
                 "protogen": {
-                    "logic_map_size": len(self.protogen.logic_map.nodes()) if hasattr(self.protogen, 'logic_map') else 0
+                    "logic_map_size": len(self.protogen.logic_map) if hasattr(self.protogen, 'logic_map') else 0  # FIX: was .nodes()
                 },
                 "sqt_network": {
                     "embedding_dim": self.sqt_network.embedding_dim if hasattr(self.sqt_network, 'embedding_dim') else 64
@@ -379,7 +378,8 @@ if __name__ == "__main__":
     print(f"Status: {status['protogen_v5']}")
     print(f"Components active: {len(status['components'])}")
     print(f"Conversation length: {status['conversation_length']}")
-    print(f"Qualia state: Coherence={status['components']['qualia']['coherence']:.2f}, Trust={status['components']['qualia']['trust']:.2f}")
+    qualia = status['components']['qualia']['primary_states']  # FIX: nested under primary_states
+    print(f"Qualia state: Coherence={qualia['coherence']:.2f}, Trust={qualia['trust']:.2f}")
     
     print("\n" + "=" * 60)
     print("Protogen v5 Integration Test Complete")

@@ -417,3 +417,34 @@ class OperativeProtogen:
             anchor = random.choice(self.axiomatic_anchors)
             return f"The {adjective} {subject} {verb} through {anchor}."
         return f"The {adjective} {subject} {verb} endlessly."
+
+    def process_text(self, text: str):
+        """Process a text string directly into the logic map."""
+        clean = re.sub(r'[^\w\s]', '', text.lower())
+        words = [t for t in clean.split() if len(t) > self.thresholds["min_token_len"]]
+        for i in range(len(words) - 1):
+            w1, w2 = words[i], words[i + 1]
+            if w1 not in self.logic_map:
+                self.logic_map[w1] = {}
+            self.logic_map[w1][w2] = self.logic_map[w1].get(w2, 0) + 1
+
+    def get_neighbors(self, concept: str) -> list:
+        """Return the neighbor concepts of a given concept in the logic map."""
+        return list(self.logic_map.get(concept.lower(), {}).keys())
+
+    def get_concept_details(self, concept: str) -> dict:
+        """Return a detail dict for a concept, or empty dict if not found."""
+        concept_lower = concept.lower()
+        neighbors = self.get_neighbors(concept_lower)
+        if not neighbors and concept_lower not in self.logic_map:
+            return {}
+        return {
+            "description": f"Concept '{concept}' connects to: {', '.join(neighbors[:5])}",
+            "neighbors": neighbors,
+            "is_symbol": concept_lower in self.symbols,
+            "is_anchor": concept_lower in self.axiomatic_anchors
+        }
+
+
+# Export alias so callers can `from protogen_v3_integrated import Protogen`
+Protogen = OperativeProtogen
