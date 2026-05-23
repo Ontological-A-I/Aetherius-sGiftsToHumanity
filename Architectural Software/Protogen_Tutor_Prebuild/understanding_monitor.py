@@ -97,20 +97,6 @@ class UnderstandingMonitor:
                         context: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Analyze a user's response to detect understanding level and confusion.
-        
-        Args:
-            user_id: Unique identifier for the user
-            user_response: The user's response text
-            context: Optional context about what was just explained
-            
-        Returns:
-            Dictionary containing:
-                - understanding_level: float 0-1
-                - confusion_detected: bool
-                - confusion_type: str or None
-                - learning_style_hints: List[str]
-                - recommended_action: str
-                - explanation: str
         """
         profile = self.user_profiles[user_id]
         profile['interaction_count'] += 1
@@ -197,18 +183,11 @@ class UnderstandingMonitor:
                          learning_style_hints: List[str], profile: Dict) -> str:
         """
         Recommend what action to take based on understanding assessment.
-        
-        Returns:
-            Action code: 'continue', 'rephrase', 'simplify', 'example', 
-                        'prerequisite', 'visual', 'analogy', 'step_by_step'
         """
-        # High understanding - continue
         if understanding_level > 0.75:
             return 'continue'
         
-        # Explicit confusion - try different approach
         if confusion_type == 'explicit_confusion':
-            # Check learning style preferences
             if 'concrete' in learning_style_hints or 'example' in learning_style_hints:
                 return 'example'
             elif 'visual' in learning_style_hints:
@@ -220,23 +199,18 @@ class UnderstandingMonitor:
             else:
                 return 'simplify'
         
-        # Explanation failed - rephrase
         if confusion_type == 'explanation_failed':
             return 'rephrase'
         
-        # Partial understanding - provide example
         if confusion_type == 'partial_understanding':
             return 'example'
         
-        # Low understanding with no clear signal
         if understanding_level < 0.4:
-            # Check if might be missing prerequisites
             if profile['interaction_count'] > 3 and profile['confidence_level'] < 0.4:
                 return 'prerequisite'
             else:
                 return 'simplify'
         
-        # Moderate understanding - provide example to solidify
         if understanding_level < 0.6:
             return 'example'
         
@@ -261,18 +235,9 @@ class UnderstandingMonitor:
                       current_explanation_failed: bool = False) -> Dict[str, Any]:
         """
         Suggest what kind of bridge might help the user understand the concept.
-        
-        Args:
-            concept: The concept being explained
-            user_id: The user who needs help
-            current_explanation_failed: Whether the current explanation didn't work
-            
-        Returns:
-            Dictionary with bridge suggestions
         """
         profile = self.user_profiles[user_id]
         
-        # Determine preferred learning style
         preferred_styles = sorted(
             profile['learning_style_indicators'].items(),
             key=lambda x: x[1],
@@ -286,7 +251,6 @@ class UnderstandingMonitor:
             'bridges': []
         }
         
-        # If current explanation failed, try different approach
         if current_explanation_failed and preferred_styles:
             primary_style = preferred_styles[0][0]
             suggestions['bridges'].append({
@@ -295,7 +259,6 @@ class UnderstandingMonitor:
                 'reason': f'User prefers {primary_style} explanations'
             })
         
-        # Always offer concrete example for low confidence
         if profile['confidence_level'] < 0.5:
             suggestions['bridges'].append({
                 'type': 'concrete_example',
@@ -303,7 +266,6 @@ class UnderstandingMonitor:
                 'reason': 'Low confidence - needs concrete grounding'
             })
         
-        # Suggest analogy for abstract concepts
         if any(word in concept.lower() for word in ['theory', 'concept', 'principle', 'abstract']):
             suggestions['bridges'].append({
                 'type': 'analogy',
@@ -311,7 +273,6 @@ class UnderstandingMonitor:
                 'reason': 'Abstract concept - analogy may help'
             })
         
-        # Suggest prerequisite check if stuck
         if profile['interaction_count'] > 5 and profile['confidence_level'] < 0.4:
             suggestions['bridges'].append({
                 'type': 'prerequisite_check',
@@ -325,7 +286,6 @@ class UnderstandingMonitor:
         """Get the learning profile for a specific user."""
         profile = self.user_profiles[user_id]
         
-        # Determine dominant learning style
         if profile['learning_style_indicators']:
             dominant_style = max(
                 profile['learning_style_indicators'].items(),
@@ -347,35 +307,24 @@ class UnderstandingMonitor:
     
     def record_explanation_outcome(self, user_id: str, concept: str, 
                                   explanation_type: str, success: bool):
-        """
-        Record whether an explanation was successful.
-        
-        This helps the system learn what works for each user.
-        """
+        """Record whether an explanation was successful."""
         profile = self.user_profiles[user_id]
         
         outcome = {
             'concept': concept,
             'explanation_type': explanation_type,
-            'timestamp': None  # Would use datetime in production
+            'timestamp': None
         }
         
         if success:
             profile['successful_explanations'].append(outcome)
-            # Boost confidence
             profile['confidence_level'] = min(1.0, profile['confidence_level'] + 0.1)
         else:
             profile['failed_explanations'].append(outcome)
-            # Reduce confidence slightly
             profile['confidence_level'] = max(0.0, profile['confidence_level'] - 0.05)
     
     def get_encouragement(self, user_id: str) -> str:
-        """
-        Generate encouragement for the user based on their progress.
-        
-        This is important for students who struggle - they need to know
-        that confusion is normal and they're making progress.
-        """
+        """Generate encouragement for the user based on their progress."""
         profile = self.user_profiles[user_id]
         
         if profile['confidence_level'] < 0.3:
@@ -388,9 +337,17 @@ class UnderstandingMonitor:
         else:
             return ("Great! You're understanding this well. Ready to continue?")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get summary status of the understanding monitor."""
+        return {
+            'total_users_tracked': len(self.user_profiles),
+            'confusion_patterns_loaded': len(self.confusion_patterns),
+            'understanding_patterns_loaded': len(self.understanding_patterns),
+            'learning_styles_tracked': len(self.learning_style_signals)
+        }
+    
     def save_profiles(self, filepath: str):
         """Save user profiles to disk for persistence."""
-        # Convert defaultdict to regular dict for JSON serialization
         profiles_dict = {k: dict(v) for k, v in self.user_profiles.items()}
         
         with open(filepath, 'w') as f:
@@ -402,7 +359,6 @@ class UnderstandingMonitor:
             with open(filepath, 'r') as f:
                 profiles_dict = json.load(f)
                 
-            # Convert back to defaultdict
             for user_id, profile in profiles_dict.items():
                 self.user_profiles[user_id] = profile
                 

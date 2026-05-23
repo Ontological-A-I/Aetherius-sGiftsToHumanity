@@ -39,7 +39,7 @@ class ProtogenCommunicator:
             protogen: Protogen instance (logic map builder)
             sqt_network: SQT Neural Network instance
             qualia_manager: Qualia Manager instance
-            srim: SRIM instance (episodic memory)
+            srim: SRIM instance (episodic memory), may be None
             storage_path: Path for persistent storage
         """
         self.protogen = protogen
@@ -67,20 +67,6 @@ class ProtogenCommunicator:
                           context: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Process user input and generate appropriate response.
-        
-        This is the main entry point for user interaction.
-        
-        Args:
-            user_id: Unique identifier for the user
-            user_input: Natural language input from user
-            context: Optional context about current conversation
-            
-        Returns:
-            Dictionary containing:
-                - response: Natural language response
-                - understanding_assessment: Understanding level and recommendations
-                - symbolic_result: Raw symbolic output from Protogen
-                - qualia_state: Current emotional/confidence state
         """
         # Initialize conversation history if needed
         if user_id not in self.conversations:
@@ -116,13 +102,14 @@ class ProtogenCommunicator:
         }
         self.conversations[user_id].append(interaction)
         
-        # Store in SRIM (episodic memory)
-        self.srim.store_event(
-            event_type='user_interaction',
-            description=f"User {user_id}: {user_input[:50]}...",
-            emotional_context={'confidence': user_profile['confidence_level']},
-            metadata={'user_id': user_id}
-        )
+        # Store in SRIM (episodic memory) if available
+        if self.srim:
+            self.srim.store_event(
+                event_type='user_interaction',
+                description=f"User {user_id}: {user_input[:50]}...",
+                emotional_context={'confidence': user_profile['confidence_level']},
+                metadata={'user_id': user_id}
+            )
         
         return {
             'response': adapted_response,
@@ -136,16 +123,6 @@ class ProtogenCommunicator:
                              last_concept: Optional[str] = None) -> Dict[str, Any]:
         """
         Process user feedback to assess understanding and adapt.
-        
-        This is called when user responds to an explanation.
-        
-        Args:
-            user_id: Unique identifier for the user
-            feedback: User's response/feedback
-            last_concept: The concept that was just explained
-            
-        Returns:
-            Dictionary with understanding assessment and recommendations
         """
         # Analyze the feedback
         analysis = self.understanding.analyze_response(
@@ -179,17 +156,10 @@ class ProtogenCommunicator:
     def _execute_symbolic_instruction(self, instruction: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a symbolic instruction in Protogen's knowledge base.
-        
-        Args:
-            instruction: Symbolic instruction from LanguageSQTBridge
-            
-        Returns:
-            Symbolic result dictionary
         """
         action = instruction.get('action')
         
         if action == 'QUERY_GRAPH_NEIGHBORS':
-            # Query related concepts
             target_concept = instruction.get('target_concept_id', '')
             related = self.protogen.get_neighbors(target_concept)
             
@@ -200,18 +170,16 @@ class ProtogenCommunicator:
             }
         
         elif action == 'QUERY_CONCEPT_DETAILS':
-            # Get concept details
             target_concept = instruction.get('target_concept_id', '')
             details = self.protogen.get_concept_details(target_concept)
             
             return {
                 'output_type': 'CONCEPT_DETAILS_RESULT',
                 'concept_id': target_concept,
-                'description': details if details else 'Concept not found'
+                'description': details.get('description', 'Concept not found') if details else 'Concept not found'
             }
         
         elif action == 'INGEST_DATA_SHARD':
-            # Process new data
             data_content = instruction.get('data_content', '')
             self.protogen.process_text(data_content)
             
@@ -221,7 +189,6 @@ class ProtogenCommunicator:
             }
         
         elif action == 'NO_MATCH':
-            # No pattern matched
             return {
                 'output_type': 'NO_MATCH',
                 'original_query': instruction.get('original_query', '')
@@ -237,32 +204,19 @@ class ProtogenCommunicator:
                        symbolic_result: Dict) -> str:
         """
         Adapt response based on user's learning profile.
-        
-        Args:
-            base_response: Base natural language response
-            user_profile: User's learning profile
-            symbolic_result: Raw symbolic result
-            
-        Returns:
-            Adapted response string
         """
-        # If user has low confidence, add encouragement
         if user_profile['confidence_level'] < 0.5:
             base_response += "\n\n" + self.understanding.get_encouragement(
                 user_profile['user_id']
             )
         
-        # If user prefers visual explanations, suggest visualization
         if user_profile.get('dominant_learning_style') == 'visual':
             base_response += "\n\n(Would you like me to show you a diagram?)"
         
-        # If user prefers concrete examples, offer one
         if user_profile.get('dominant_learning_style') == 'concrete':
             base_response += "\n\n(Would you like a specific example?)"
         
-        # If user prefers step-by-step, structure accordingly
         if user_profile.get('dominant_learning_style') == 'step_by_step':
-            # Could restructure response into numbered steps here
             pass
         
         return base_response
@@ -277,19 +231,9 @@ class ProtogenCommunicator:
                        level: Optional[str] = None) -> str:
         """
         Explain a concept at an appropriate level for the user.
-        
-        Args:
-            user_id: User requesting explanation
-            concept: Concept to explain
-            level: Optional explicit level ('simple', 'intermediate', 'advanced')
-            
-        Returns:
-            Natural language explanation
         """
-        # Get user profile to determine appropriate level
         user_profile = self.understanding.get_user_profile(user_id)
         
-        # Determine level if not specified
         if level is None:
             if user_profile['confidence_level'] < 0.4:
                 level = 'simple'
@@ -298,13 +242,11 @@ class ProtogenCommunicator:
             else:
                 level = 'advanced'
         
-        # Get concept details from Protogen
         details = self.protogen.get_concept_details(concept)
         
         if not details:
             return f"I don't have information about '{concept}' yet. Would you like to teach me about it?"
         
-        # Adapt explanation based on level and learning style
         explanation = self._generate_explanation(
             concept, details, level, user_profile
         )
@@ -315,38 +257,24 @@ class ProtogenCommunicator:
                             level: str, user_profile: Dict) -> str:
         """
         Generate an explanation adapted to user's level and learning style.
-        
-        This is where the magic happens - adapting to individual needs.
         """
-        # Base explanation from Protogen's knowledge
         base_explanation = details.get('description', f"Information about {concept}")
         
-        # Adapt based on level
         if level == 'simple':
-            # Simplify language, add concrete examples
             explanation = f"{concept} is {base_explanation}"
-            
-            # Add example if available
             if 'examples' in details:
                 explanation += f"\n\nFor example: {details['examples'][0]}"
         
         elif level == 'intermediate':
-            # Standard explanation with context
             explanation = f"{concept}: {base_explanation}"
-            
-            # Add related concepts
             if 'related' in details:
                 explanation += f"\n\nRelated to: {', '.join(details['related'][:3])}"
         
         else:  # advanced
-            # Detailed explanation with relationships
             explanation = f"{concept}: {base_explanation}"
-            
-            # Add technical details if available
             if 'technical_details' in details:
                 explanation += f"\n\nTechnical details: {details['technical_details']}"
         
-        # Adapt based on learning style
         dominant_style = user_profile.get('dominant_learning_style')
         
         if dominant_style == 'concrete' and 'examples' in details:
@@ -362,12 +290,10 @@ class ProtogenCommunicator:
     
     def _load_state(self):
         """Load persisted state from disk."""
-        # Load understanding monitor profiles
         profiles_path = self.storage_path / 'understanding_profiles.json'
         if profiles_path.exists():
             self.understanding.load_profiles(str(profiles_path))
         
-        # Load conversation histories
         conversations_path = self.storage_path / 'conversations.json'
         if conversations_path.exists():
             with open(conversations_path, 'r') as f:
@@ -377,11 +303,9 @@ class ProtogenCommunicator:
         """Save state to disk for persistence."""
         self.storage_path.mkdir(parents=True, exist_ok=True)
         
-        # Save understanding monitor profiles
         profiles_path = self.storage_path / 'understanding_profiles.json'
         self.understanding.save_profiles(str(profiles_path))
         
-        # Save conversation histories (last 50 interactions per user)
         conversations_path = self.storage_path / 'conversations.json'
         trimmed_conversations = {
             user_id: history[-50:]

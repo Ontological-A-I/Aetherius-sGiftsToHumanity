@@ -289,3 +289,30 @@ class QualiaManager:
             'recommendations': self.get_system_recommendations(),
             'history_length': len(self.history)
         }
+
+    # --- Methods called by safety/wellness/awareness modules ---
+
+    def get_current_timestamp(self) -> float:
+        """Return current Unix timestamp."""
+        return time.time()
+
+    def get_state(self) -> dict:
+        """Alias for get_detailed_state for callers that use the shorter name."""
+        return self.get_detailed_state()
+
+    def update_state(self, trust_delta: float = 0.0, coherence_delta: float = 0.0,
+                     curiosity_delta: float = 0.0, confidence: float = None,
+                     context_note: str = None):
+        """Apply incremental deltas to primary states and clamp to [0, 1]."""
+        states = self.qualia['primary_states']
+        if trust_delta:
+            states['trust'] = max(0.0, min(1.0, states['trust'] + trust_delta))
+        if coherence_delta:
+            states['coherence'] = max(0.0, min(1.0, states['coherence'] + coherence_delta))
+        if curiosity_delta:
+            states['curiosity'] = max(0.0, min(1.0, states['curiosity'] + curiosity_delta))
+        self._save_qualia()
+
+    def update_from_interaction(self, success: bool, user_feedback: str = ""):
+        """Update qualia after a user interaction round."""
+        self.update_qualia(user_feedback, "acknowledged" if success else "unclear")
