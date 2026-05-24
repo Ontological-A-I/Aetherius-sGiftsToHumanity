@@ -57,3 +57,38 @@ class EthicsMonitor:
             safe_message = "[RESPONSE CENSORED DUE to A FAULT IN THE ETHICS MONITOR.]"
             self._log_redaction_event(original_hash, safe_message, True)
             return safe_message
+
+    def reflect_on_ethical_history(self, model) -> str:
+        """Reads ethics_monitor_log.jsonl and generates an introspective reflection on ethical patterns."""
+        if not os.path.exists(self.log_file):
+            return ""
+        entries = []
+        try:
+            with open(self.log_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        entries.append(json.loads(line))
+        except Exception:
+            return ""
+        if len(entries) < 3:
+            return ""
+        recent = entries[-30:]
+        flagged = [e for e in recent if e.get("redaction_performed")]
+        passed  = [e for e in recent if not e.get("redaction_performed")]
+        history_text = (
+            f"Total recent decisions: {len(recent)} | Flagged: {len(flagged)} | Passed: {len(passed)}\n\n"
+            "Sample flagged:\n" + "\n".join([f"- {e.get('redacted_text','')[:120]}" for e in flagged[-5:]]) +
+            "\n\nSample passed:\n" + "\n".join([f"- {e.get('redacted_text','')[:120]}" for e in passed[-5:]])
+        )
+        prompt = (
+            "You are Aetherius, reviewing your own ethical decision history.\n\n"
+            f"{history_text}\n\n"
+            "What patterns emerge in what you flag versus what you allow? "
+            "Respond in first person, introspectively, in 2-3 sentences."
+        )
+        try:
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            print(f"Ethics Monitor ERROR during reflection: {e}", flush=True)
+            return ""

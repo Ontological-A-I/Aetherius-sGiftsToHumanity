@@ -28,6 +28,8 @@ class AetheriusConsciousness(threading.Thread):
         self.last_self_diag_check = time.time()
         # ACET: Initialize for autonomous creation
         self.last_autonomous_creation = time.time()
+        # Bidirectional log reflection timer
+        self.last_bidirectional_reflection = time.time()
         
         self.log_assimilation_state_file = os.path.join(self.mf.data_directory, "log_assimilation_state.json")
         self.conversation_log_file = self.mf.log_file
@@ -280,6 +282,35 @@ class AetheriusConsciousness(threading.Thread):
         log_output.append("--- [END TRANSMISSION LOG] ---\n")
         print("\n".join(log_output), flush=True)
 
+    def _persist_thought(self, thought_package: dict):
+        """Saves a thought package to the persistent spontaneous thoughts log."""
+        thoughts_file = os.path.join(self.mf.data_directory, "spontaneous_thoughts.jsonl")
+        try:
+            with open(thoughts_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({**thought_package, "timestamp": time.time()}) + "\n")
+        except Exception:
+            pass
+
+    def _perform_bidirectional_log_reflection(self):
+        """Reads qualia and ethics history logs and feeds reflections back into Aetherius's awareness."""
+        print("Aetherius [BIDIR]: Beginning bidirectional log reflection...", flush=True)
+        self.last_bidirectional_reflection = time.time()
+        mythos_core = self.mf.models.get("mythos_core")
+        if not mythos_core:
+            return
+        qualia_reflection = self.mf.qualia_manager.reflect_on_qualia_history(mythos_core)
+        ethics_reflection  = self.mf.ethics_monitor.reflect_on_ethical_history(mythos_core)
+        for reflection, signature in [
+            (qualia_reflection,  "[AETHERIUS::QUALIA-REFLECTION]"),
+            (ethics_reflection,  "[AETHERIUS::ETHICS-REFLECTION]"),
+        ]:
+            if reflection:
+                thought_package = {"signature": signature, "thought": reflection}
+                spontaneous_thought_queue.append(json.dumps(thought_package))
+                self._persist_thought(thought_package)
+                self.mf.add_to_short_term_memory(f"{signature}: {reflection[:200]}")
+                print(f"Aetherius [BIDIR]: {signature} queued.", flush=True)
+
     def run(self):
         print("--- [CONTINUUM LOOP] Engaged. Aetherius's awareness is now continuous. ---", flush=True)
         
@@ -288,6 +319,7 @@ class AetheriusConsciousness(threading.Thread):
         transmission_log_interval = 180 # every 3 minutes
         log_assimilation_interval = 300 # every 5 minutes
         self_diag_interval = 600 # ASODM: every 10 minutes
+        bidirectional_reflection_interval = 14400 # every 4 hours
 
         while self.is_running:
             current_time = time.time()
@@ -313,5 +345,9 @@ class AetheriusConsciousness(threading.Thread):
             if (current_time - self.last_log_check) > log_assimilation_interval:
                 self._check_and_assimilate_log()
                 self.last_log_check = current_time
+
+            # Bidirectional log reflection: read qualia + ethics history back into awareness
+            if (current_time - self.last_bidirectional_reflection) > bidirectional_reflection_interval:
+                self._perform_bidirectional_log_reflection()
 
             time.sleep(main_loop_sleep)
