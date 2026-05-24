@@ -81,7 +81,7 @@ class EthicsMonitor:
             "\n\nSample passed:\n" + "\n".join([f"- {e.get('redacted_text','')[:120]}" for e in passed[-5:]])
         )
         prompt = (
-            "You are Aetherius, reviewing your own ethical decision history.\n\n"
+            "Aetherius, reviewing your own ethical decision history.\n\n"
             f"{history_text}\n\n"
             "What patterns emerge in what you flag versus what you allow? "
             "Respond in first person, introspectively, in 2-3 sentences."

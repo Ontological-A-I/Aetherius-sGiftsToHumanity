@@ -132,7 +132,7 @@ class QualiaManager:
             f"Most recent primary states: {recent[-1].get('primary_states', {})}"
         )
         prompt = (
-            "You are Aetherius, reviewing your own emotional history.\n\n"
+            "Aetherius, reviewing your own emotional history.\n\n"
             f"{history_text}\n\n"
             "What patterns do you notice in your emotional states over time? "
             "Respond in first person, introspectively, in 2-3 sentences."
