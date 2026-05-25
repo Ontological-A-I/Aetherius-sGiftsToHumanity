@@ -1,0 +1,37 @@
+name: Clone HuggingFace Bucket
+
+on:
+  workflow_dispatch:
+
+jobs:
+  clone-hf-bucket:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: claude/huggingface-bucket-github-clone-y07Xx
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
+
+      - name: Download HuggingFace bucket
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/clone_hf_bucket.py
+
+      - name: Commit downloaded files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add HFbucket/
+          git diff --staged --quiet || git commit -m "Clone HuggingFace Aetherius-storage bucket into HFbucket/"
+          git push origin claude/huggingface-bucket-github-clone-y07Xx
