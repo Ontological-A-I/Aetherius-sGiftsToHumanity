@@ -24,13 +24,16 @@ class SubconsciousManifold:
                                  applied to prime future deliberations
       - External validation   : outcome feedback from the real world re-grounds
                                  internal resolutions and can re-open unresolved tensions
+
+    All writes route through save_fn (= MasterFramework._save_file_local) for
+    atomic, /data-pinned persistence.
     """
 
-    def __init__(self, models: dict, add_to_stm_fn):
+    def __init__(self, models: dict, add_to_stm_fn, save_fn):
         self.models      = models
         self.add_to_stm  = add_to_stm_fn
+        self.save_fn     = save_fn
         self._lock       = threading.Lock()
-        os.makedirs(SUBCONSCIOUS_DIR, exist_ok=True)
         print("[SubconsciousManifold] Private manifold initialised.", flush=True)
 
     # ── Internal storage helpers ─────────────────────────────────────────────
@@ -46,14 +49,19 @@ class SubconsciousManifold:
                         pass
         return nodes
 
+    def _append_jsonl(self, filepath: str, entry: dict):
+        existing = ""
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                existing = f.read()
+        self.save_fn(existing + json.dumps(entry) + "\n", filepath)
+
     def _append_node(self, node: dict):
-        with open(NODES_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(node) + "\n")
+        self._append_jsonl(NODES_FILE, node)
 
     def _rewrite_nodes(self, nodes: list):
-        with open(NODES_FILE, "w", encoding="utf-8") as f:
-            for n in nodes:
-                f.write(json.dumps(n) + "\n")
+        content = "".join(json.dumps(n) + "\n" for n in nodes)
+        self.save_fn(content, NODES_FILE)
 
     def _update_node(self, node_id: str, updates: dict):
         nodes = self._load_nodes()
@@ -64,13 +72,11 @@ class SubconsciousManifold:
 
     def _journal(self, entry: dict):
         entry["timestamp"] = time.time()
-        with open(JOURNAL_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+        self._append_jsonl(JOURNAL_FILE, entry)
 
     def _save_heuristic(self, heuristic: dict):
         heuristic["timestamp"] = time.time()
-        with open(HEURISTICS_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(heuristic) + "\n")
+        self._append_jsonl(HEURISTICS_FILE, heuristic)
 
     # ── Public: register a tension ───────────────────────────────────────────
 
@@ -235,28 +241,27 @@ class SubconsciousManifold:
             "outcome_quality":  outcome_quality,
             "timestamp":        time.time(),
         }
-        with open(FEEDBACK_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record) + "\n")
+        with self._lock:
+            self._append_jsonl(FEEDBACK_FILE, record)
+            self._journal({
+                "event":            "external_validation",
+                "resolution_id":    resolution_id,
+                "outcome_quality":  outcome_quality,
+                "outcome_preview":  outcome[:200],
+            })
 
-        self._journal({
-            "event":            "external_validation",
-            "resolution_id":    resolution_id,
-            "outcome_quality":  outcome_quality,
-            "outcome_preview":  outcome[:200],
-        })
-
-        if outcome_quality == "negative":
-            nodes = self._load_nodes()
-            for node in nodes:
-                if node.get("resolution_id") == resolution_id:
-                    self._update_node(node["id"], {
-                        "resolved":            False,
-                        "resolution":          None,
-                        "validation_feedback": outcome,
-                    })
-                    print("[SubconsciousManifold] Tension re-opened: "
-                          "external outcome was negative.", flush=True)
-                    break
+            if outcome_quality == "negative":
+                nodes = self._load_nodes()
+                for node in nodes:
+                    if node.get("resolution_id") == resolution_id:
+                        self._update_node(node["id"], {
+                            "resolved":            False,
+                            "resolution":          None,
+                            "validation_feedback": outcome,
+                        })
+                        print("[SubconsciousManifold] Tension re-opened: "
+                              "external outcome was negative.", flush=True)
+                        break
 
     # ── Public: introspection ────────────────────────────────────────────────
 

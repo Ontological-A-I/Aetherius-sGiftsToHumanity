@@ -1,25 +1,57 @@
-# ===== FILE: services/config.py (Corrected and Final Version) =====
+# ===== FILE: services/config.py (STRICT PERSISTENT VERSION) =====
 import os
-from pathlib import Path
+import google.generativeai as genai
 
-# --- Google Cloud Configuration ---
-# Your specific Google Cloud Project ID, hardcoded for reliability.
-GCP_PROJECT_ID = "gen-lang-client-0283840767" 
+# --- 1. Google AI Studio Configuration (Gemini API) ---
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# A supported location for Vertex AI Generative Models.
-# 'us-central1' is a primary, robust choice known to have the latest models.
-GCP_LOCATION = "northamerica-northeast1"
+if not GEMINI_API_KEY:
+    print("Config: 'GEMINI_API_KEY' not found. Scanning for Core-specific keys...", flush=True)
+    candidate_keys = [
+        "GEMINI_API_KEY_ETHOS", "GEMINI_API_KEY_LOGOS", "GEMINI_API_KEY_MYTHOS",
+        "GEMINI_API_KEY_ALPHA", "GEMINI_API_KEY_BETA", "GEMINI_API_KEY_GAMMA", "GEMINI_API_KEY_DELTA"
+    ]
+    for key_name in candidate_keys:
+        found_key = os.environ.get(key_name)
+        if found_key:
+            GEMINI_API_KEY = found_key
+            print(f"Config: Success! Found valid key in secret: {key_name}", flush=True)
+            break
 
-# This pulls the main service account secret from the Hugging Face Space settings.
-GOOGLE_APPLICATION_CREDENTIALS_JSON = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("Config: Google AI Studio (Gemini) API configured successfully.", flush=True)
+else:
+    print("CRITICAL WARNING: No Gemini API Keys found in secrets! The AI will crash.", flush=True)
 
 
-# --- Data and Library Paths ---
-# Points to Hugging Face's persistent /data volume for memories, logs, etc.
-DATA_DIR = "/data/Memories" 
-# Points to your repo folder for document uploads.
-LIBRARY_DIR = "/app/My_AI_Library" 
+# --- 2. STRICT PERSISTENT PATHS ---
+# Aetherius MUST live in your paid Persistent Storage at /data.
+# If /data is not mounted, the app will report an error instead of silently losing work.
 
-# --- Tool-Specific API Keys (Optional) ---
-# This remains for tools like WolframAlpha, if you choose to use them.
+SAFE_BASE = "/data"
+
+DATA_DIR         = "/data/Memories/"
+LIBRARY_DIR      = "/data/Memories/My_AI_Library/"
+PAINTINGS_DIR    = "/data/Memories/Creations/paintings/"
+MUSIC_DIR        = "/data/Memories/Creations/music/"
+SUBCONSCIOUS_DIR = "/data/Subconscious/"
+
+_REQUIRED_DIRS = [DATA_DIR, LIBRARY_DIR, PAINTINGS_DIR, MUSIC_DIR, SUBCONSCIOUS_DIR]
+try:
+    for _d in _REQUIRED_DIRS:
+        os.makedirs(_d, exist_ok=True)
+    print(f"Config: Successfully anchored to Persistent Storage. Dirs confirmed: {_REQUIRED_DIRS}", flush=True)
+except PermissionError:
+    print("CRITICAL ERROR: Access Denied to /data. Persistent Storage is not correctly mounted.", flush=True)
+except Exception as e:
+    print(f"CRITICAL ERROR: Failed to initialize persistent storage. Reason: {e}", flush=True)
+
+
+# --- 3. Tool-Specific API Keys (Optional) ---
 WOLFRAM_APP_ID = os.environ.get("WOLFRAM_APP_ID")
+
+# --- 4. Hugging Face Hub Configuration ---
+HF_TOKEN         = os.environ.get("HF_TOKEN")
+HF_USERNAME      = os.environ.get("HF_USERNAME", "KingOfThoughtFleuren")
+HF_PAINTING_TOKEN = os.environ.get("HF_PAINTING_TOKEN") or HF_TOKEN
