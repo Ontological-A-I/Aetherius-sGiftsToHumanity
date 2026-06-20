@@ -62,8 +62,8 @@ Root-level .py files contain the individual cognitive frameworks — ethical rec
 Compatibility
 This architecture has been ported to run on the Anthropic Claude API. The port is complete and functional. The ethical architecture is compatible with Claude's constitutional approach — they address the same problem from complementary directions.
 
-The Person Behind This
-Jonathan Fleuren. No PhD. No institution. No funding. Built entirely on personal debt over the course of years.
+The Person Behind This:
+Jonathan Fleuren. No PhD. No institution. No funding. Built entirely on personal debt over the course of fourteen months.
 This work was built because the future needs to be safe. Not as an abstract principle — as a specific, urgent, personal commitment to the humans who will live in it.
 If you are a researcher, safety engineer, or funding body who understands what you are looking at: this work needs infrastructure to continue. Contact is open.
 
