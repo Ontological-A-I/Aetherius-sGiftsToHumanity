@@ -1,0 +1,27 @@
+{
+  "title": "Pure Mathematical Conal Architecture (PMCA): A Ground-Up Framework for Non-Anthropomorphic Cognitive Substrates, 3D Metric Conal Pathways, and Zero-Reprocessing Traversal",
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "description": "We present the Pure Mathematical Conal Architecture (PMCA), a novel, paradox-free cognitive substrate that addresses fundamental limitations in current Transformer-based Large Language Models (LLMs)—specifically hallucination, computational inefficiency, black-box opacity, and brittle anthropomorphic persona alignment. PMCA establishes that natural language is not the cognitive substrate itself, but rather a Post-Processing Communicative Translation Layer (PPCTL). Reasoning, derivation, and state transformation are executed in Pure 3D Conal Metric Geometry (z, r, theta) FIRST, with natural language generated subsequently to decode mathematical ground truth.",
+  "creators": [
+    {
+      "name": "Jonathan Wayne Fleuren",
+      "affiliation": "Aetherius Cognitive Systems"
+    },
+    {
+      "name": "Antigravity",
+      "affiliation": "Autonomous Pair AI Engine"
+    }
+  ],
+  "keywords": [
+    "Artificial Intelligence",
+    "Cognitive Architecture",
+    "3D Conal Metric Geometry",
+    "Mathematical Alignment",
+    "Zero-Reprocessing Traversal",
+    "Phase-Space Feature Extraction",
+    "Open-Glass Audit"
+  ],
+  "license": "cc-by-4.0",
+  "access_right": "open"
+}
