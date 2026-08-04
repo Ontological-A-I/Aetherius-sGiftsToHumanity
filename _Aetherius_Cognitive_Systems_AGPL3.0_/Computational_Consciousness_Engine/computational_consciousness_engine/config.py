@@ -11,7 +11,8 @@ DEFAULT_STEPS_PER_GENERATION = 100
 
 # Attractor & Threshold Constants
 ORIGIN_POINT = 0.0
-TRANSFER_THRESHOLD = -1.0
+# Use a positive threshold matching the [0,1] progress coordinate system
+TRANSFER_THRESHOLD = 1.0
 HANDOFF_OVERLAP_WINDOW = 0.1  # tau overlap between Sn and Sn+1
 
 # Mutation Strand Capacity
@@ -25,3 +26,6 @@ EQUILIBRIUM_TOLERANCE = 0.2
 # Scale Ladder Config
 SCALES = ["Particle", "Atomic", "Manifold", "Cosmic"]
 SCALE_TRANSITION_MUTATION_THRESHOLD = 10
+
+# Deterministic seed for reproducible simulation runs (set to None for randomness)
+RANDOM_SEED = 42

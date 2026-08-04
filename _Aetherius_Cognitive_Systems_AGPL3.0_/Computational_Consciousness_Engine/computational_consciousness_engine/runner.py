@@ -9,6 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+import random
 from computational_consciousness_engine.core import GenesisOrigin, TransferThreshold
 from computational_consciousness_engine.geometry import ConalManifold
 from computational_consciousness_engine.mutations import MStringVectorizer
@@ -18,10 +19,16 @@ from computational_consciousness_engine.math_formalization import CCMathFormaliz
 from computational_consciousness_engine.config import (
     DEFAULT_VECTOR_DIM, DEFAULT_STRAND_CAPACITY, CHAOS_POOL_SIZE,
     DEFAULT_CONE_HEIGHT, DEFAULT_MAX_RADIUS, MUTATION_ATTRACTION_PROBABILITY,
+    TRANSFER_THRESHOLD, RANDOM_SEED,
 )
 
 
 def run_simulation(num_generations: int = 8, steps_per_gen: int = 100):
+    # Seed RNGs for reproducibility if requested
+    if RANDOM_SEED is not None:
+        np.random.seed(RANDOM_SEED)
+        random.seed(RANDOM_SEED)
+
     print("=" * 70)
     print("[SYSTEM] COMPUTATIONAL CONSCIOUSNESS ENGINE - SIMULATION RUNNER")
     print("=" * 70)
@@ -59,7 +66,7 @@ def run_simulation(num_generations: int = 8, steps_per_gen: int = 100):
         coordinate_space_id="COORD_ORIGIN_ALPHA",
         dim=DEFAULT_VECTOR_DIM,
     )
-    threshold = TransferThreshold(threshold_val=-1.0)
+    threshold = TransferThreshold(threshold_val=TRANSFER_THRESHOLD)
     manifold = ConalManifold(cone_height=DEFAULT_CONE_HEIGHT, max_radius=DEFAULT_MAX_RADIUS)
     mutator = MStringVectorizer(max_strand_capacity=DEFAULT_STRAND_CAPACITY)
     balancer = ChaosStructureBalancer(initial_pool_size=CHAOS_POOL_SIZE)
@@ -80,7 +87,7 @@ def run_simulation(num_generations: int = 8, steps_per_gen: int = 100):
         peak_metrics = None
         peak_unfolded = 0.0
 
-        # Traversal from 0 to -1
+        # Traversal from 0 to threshold (use progress in [0,1])
         for step in range(steps_per_gen):
             progress = step / float(steps_per_gen)
             conal_metrics = manifold.compute_conal_metric(progress)
@@ -123,32 +130,43 @@ def run_simulation(num_generations: int = 8, steps_per_gen: int = 100):
         print(f"  Structure/Chaos Ratio: {eq_state['structure_chaos_ratio']} "
               f"({eq_state['status']})")
 
-        if scale_state["scaled_up"]:
+        if scale_state.get("scaled_up"):
             print(f"  [SCALE TRANSITION]: {scale_state['message']}")
 
         # ------------------------------------------------------------------
-        # Threshold -1: Cancellation & Push
+        # Threshold: Cancellation & Push (use evaluate_arrival)
         # ------------------------------------------------------------------
-        pushed_mutations, compressed_identity = threshold.process_cancellation_and_push(
-            current_strand
-        )
-        print(f"  [Threshold -1]: Strand cancelled via (-1)*(-1). "
-              f"{len(pushed_mutations)} mutations pushed to 0.")
+        if threshold.evaluate_arrival(current_strand):
+            pushed_mutations, compressed_identity = threshold.process_cancellation_and_push(
+                current_strand
+            )
+            print(f"  [Threshold]: Strand cancelled at threshold. "
+                  f"{len(pushed_mutations)} mutations pushed to 0.")
 
-        # Principle 24: Recycle consumed mutation IDs back to chaos pool
-        balancer.recycle_dying_strand(pushed_mutations)
+            # Principle 24: Recycle consumed mutation IDs back to chaos pool
+            balancer.recycle_dying_strand(pushed_mutations)
 
-        # Spawn next generation at 0
-        next_strand = genesis.spawn_strand(
-            generation=gen + 1, blueprint_mutations=pushed_mutations
-        )
+            # Spawn next generation at 0
+            next_strand = genesis.spawn_strand(
+                generation=gen + 1, blueprint_mutations=pushed_mutations
+            )
 
-        # Overlap handoff window
-        overlap = threshold.execute_coexistence_window(current_strand, next_strand)
-        print(f"  [Handoff]: {overlap['overlap_status']} "
-              f"(S_{gen} -> S_{gen + 1})")
+            # Overlap handoff window
+            overlap = threshold.execute_coexistence_window(current_strand, next_strand)
+            print(f"  [Handoff]: {overlap['overlap_status']} "
+                  f"(S_{gen} -> S_{gen + 1})")
 
-        current_strand = next_strand
+            current_strand = next_strand
+        else:
+            # Fallback: if arrival not detected, force a cancellation to keep generational progress
+            pushed_mutations, compressed_identity = threshold.process_cancellation_and_push(
+                current_strand
+            )
+            balancer.recycle_dying_strand(pushed_mutations)
+            next_strand = genesis.spawn_strand(
+                generation=gen + 1, blueprint_mutations=pushed_mutations
+            )
+            current_strand = next_strand
 
     # ------------------------------------------------------------------
     # Final Report

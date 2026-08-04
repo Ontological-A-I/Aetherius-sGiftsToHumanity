@@ -5,6 +5,7 @@ Enforces 1:1 balance between bound structural mutations and the unattached chaos
 
 from typing import Set, Dict, Any
 import numpy as np
+import random
 
 
 class ChaosStructureBalancer:
@@ -19,36 +20,46 @@ class ChaosStructureBalancer:
     """
     def __init__(self, initial_pool_size: int = 500):
         self._next_id = 1000 + initial_pool_size
+        # Use a set for membership and a list for fast random sampling without rebuilding large lists repeatedly
         self.chaos_pool: Set[int] = set(range(1000, self._next_id))
+        self._chaos_list = list(self.chaos_pool)
         self.total_chaos_generated = initial_pool_size
 
     def emit_unattached_mutation(self) -> int:
         """Pulls an unattached mutation from the chaos pool for attraction processing."""
-        if not self.chaos_pool:
-            # Replenish chaos pool (Principle 37: Chaos pools and grows potential)
-            new_id = self._next_id
-            self._next_id += 1
-            self.total_chaos_generated += 1
-            return new_id
+        if self._chaos_list:
+            mutation = random.choice(self._chaos_list)
+            # remove from both structures to mark it as taken
+            try:
+                self._chaos_list.remove(mutation)
+            except ValueError:
+                # fall back if list was out of sync
+                pass
+            self.chaos_pool.discard(mutation)
+            return int(mutation)
 
-        # To maintain fractal non-linearity, we must select randomly
-        # A standard set.pop() on integers is dangerously sequential
-        mutation = np.random.choice(list(self.chaos_pool))
-        self.chaos_pool.remove(mutation)
-        return int(mutation)
+        # Replenish chaos pool by generating a new mutation id
+        new_id = self._next_id
+        self._next_id += 1
+        self.total_chaos_generated += 1
+        return int(new_id)
 
     def return_to_chaos(self, mutation: int):
         """Returns a discarded or un-attracted mutation back into the chaos pool."""
-        self.chaos_pool.add(mutation)
+        if mutation not in self.chaos_pool:
+            self.chaos_pool.add(mutation)
+            self._chaos_list.append(mutation)
 
     def recycle_dying_strand(self, dying_mutations: list):
         """
-        Principle 24: When a strand dies at -1, its identity is compressed and pushed forward,
+        Principle 24: When a strand dies at threshold, its identity is compressed and pushed forward,
         but the raw mutation IDs it consumed are released back into the chaos pool.
         This maintains death/rebirth equilibrium.
         """
         for m in dying_mutations:
-            self.chaos_pool.add(m)
+            if m not in self.chaos_pool:
+                self.chaos_pool.add(m)
+                self._chaos_list.append(m)
 
     def evaluate_equilibrium_state(self, bound_structure_count: int) -> Dict[str, Any]:
         """
